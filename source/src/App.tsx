@@ -178,6 +178,11 @@ export default function App() {
             </label>
             <button className="btn tb-btn" onClick={() => reset()}><Icon n="undo" s={16} />Reset</button>
             <button className="btn tb-btn" onClick={enterFull}><Icon n="maximize" s={16} />Full screen</button>
+            {(location.protocol === 'http:' || location.protocol === 'https:') && (
+              <form className="toolbar-lock" method="post" action={'/__access/logout' + location.search + location.hash}>
+                <button className="btn tb-btn" type="submit"><Icon n="lock" s={16} />Lock prototype</button>
+              </form>
+            )}
           </div>}
           <div className="stage" ref={stageRef}>
             <motion.div key={preview} className={full ? 'viewport-device' : 'device ' + device}

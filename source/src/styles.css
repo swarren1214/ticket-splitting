@@ -49,6 +49,8 @@ button:disabled { cursor: default; }
   .toolbar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 12px; }
   .toolbar { padding-top: max(12px, env(safe-area-inset-top)); }
   .toolbar .brand, .toolbar .tb-select { grid-column: 1 / -1; }
+  .toolbar-lock { grid-column: 1 / -1; }
+  .toolbar-lock .btn { width: 100%; }
   .toolbar .seg.tb, .toolbar-spacer { display: none; }
   .tb-device-select { display: flex; }
   .tb-select select { flex: 1; min-width: 0; height: 44px; font-size: 16px; }

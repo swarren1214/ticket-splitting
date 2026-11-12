@@ -29,7 +29,7 @@ Set these in Vercel **Settings → Environment Variables** for each environment 
 
 Never prefix these variables with `VITE_`, commit real values, or put them in client-side code. For local `npm run dev` / `npm run preview`, put the same settings in the ignored `.env.local` file and restart the server after changing them. Missing or invalid settings return a 503 page rather than exposing the app.
 
-Visitors see a password-only screen. Correct passwords create a signed, HttpOnly, SameSite=Lax cookie that expires after 24 hours (Secure and host-only on HTTPS). Changing either setting and redeploying invalidates existing sessions. **Ticket actions → Lock prototype** clears the current browser's cookie. Login preserves preview query parameters and URL fragments. No usernames or individual accounts are stored.
+Visitors see a password-only screen. Correct passwords create a signed, HttpOnly, SameSite=Lax cookie that expires after 24 hours (Secure and host-only on HTTPS). Changing either setting and redeploying invalidates existing sessions. **Lock prototype** in the web-app toolbar (outside the simulated device) clears the current browser's cookie. Exit full screen first to access the toolbar. Login preserves preview query parameters and URL fragments. No usernames or individual accounts are stored.
 
 Before sharing publicly, configure a Vercel Firewall rate-limit rule covering **all POST requests** by client IP to limit password guessing. Use a strong password and disable public access to old, unprotected deployments. Anyone who knows the password can share it; downloaded content cannot be revoked remotely.
 

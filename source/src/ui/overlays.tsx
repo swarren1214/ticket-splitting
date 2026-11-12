@@ -473,11 +473,6 @@ function TicketMenu() {
       <button className="li" onClick={() => setPage('adjust')}><Icon n="pct" /><span>Service charges &amp; fees</span></button>
       <button className="li" onClick={() => { d({ type: 'TOAST', text: 'Ticket sent to printer' }); close(); }}><Icon n="print" /><span>Print ticket</span></button>
       {full && <button className="li" onClick={exitFull}><Icon n="minimize" /><span>Exit full screen</span></button>}
-      {(location.protocol === 'http:' || location.protocol === 'https:') && (
-        <form method="post" action={'/__access/logout' + location.search + location.hash}>
-          <button className="li" type="submit"><Icon n="lock" /><span>Lock prototype</span></button>
-        </form>
-      )}
       <div style={{ height: 8 }} />
       <button className="li red" disabled={anyPaid} onClick={() => setPage('voidOrder')}><Icon n="ban" /><span>Void order{anyPaid && <span className="li-sub">A tab is already paid</span>}</span></button>
       </>}
