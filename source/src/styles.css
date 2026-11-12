@@ -308,6 +308,7 @@ button:disabled { cursor: default; }
 .chip-amt { display: block; font-size: 15px; font-weight: 700; transform-origin: left center; }
 .chip-paid { width: 14px; height: 14px; border-radius: 50%; background: #1E9E57; color: #fff; display: flex; align-items: center; justify-content: center; }
 .m-main { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 12px; touch-action: pan-y; }
+.m-card-stage { position: relative; }
 .m-card { background: #fff; border-radius: 16px; border: 1px solid var(--line); overflow: hidden; }
 .m-card-head { display: flex; align-items: center; gap: 10px; padding: 8px 6px 8px 14px; border-bottom: 1px solid var(--line-2); min-height: 60px; }
 .m-card-name { font-size: 16px; font-weight: 700; }
@@ -316,7 +317,7 @@ button:disabled { cursor: default; }
 .adj-in { padding: 14px; font-size: 13px; display: flex; flex-direction: column; gap: 3px; border-bottom: 1px solid var(--line-2); }
 .m-tot { padding: 10px 14px 12px; font-size: 14px; display: flex; flex-direction: column; gap: 2px; }
 .m-tot .big { font-size: 16px; font-weight: 700; padding-top: 6px; }
-.dots { display: flex; justify-content: center; gap: 6px; padding: 14px 0 4px; }
+.dots { display: flex; justify-content: center; gap: 6px; padding: 0 0 12px; }
 .pg { width: 6px; height: 6px; border-radius: 3px; background: #C9CFD8; }
 .pg.on { width: 18px; background: var(--blue); }
 .m-bottom-wrap { flex: none; position: relative; }

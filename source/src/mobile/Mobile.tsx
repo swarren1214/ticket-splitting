@@ -172,9 +172,9 @@ function Body() {
   const { s, d, v } = useApp();
   const idx = Math.max(0, v.tabs.findIndex(t => t.tab.id === s.activeTab));
   const t = v.tabs[idx];
-  const prevIdx = useRef(idx);
-  const dir = idx >= prevIdx.current ? 1 : -1;
-  useEffect(() => { prevIdx.current = idx; }, [idx]);
+  const [page, setPage] = useState({ index: idx, direction: 1 });
+  if (page.index !== idx) setPage({ index: idx, direction: idx > page.index ? 1 : -1 });
+  const dir = page.direction;
   const drag = useDragging();
   const go = (k: number) => { const nt = v.tabs[k]; if (nt) d({ type: 'SET_ACTIVE', tabId: nt.tab.id }); };
   if (!t) return null;
@@ -184,14 +184,16 @@ function Body() {
       if (Math.abs(info.offset.x) > 70 && Math.abs(info.offset.y) < 50) go(idx + (info.offset.x < 0 ? 1 : -1));
     }}>
       <Banner />
-      <AnimatePresence mode="popLayout" initial={false} custom={dir}>
-        <motion.div key={t.tab.id} custom={dir}
-          variants={{ enter: (dr: number) => ({ x: dr * 60, opacity: 0 }), center: { x: 0, opacity: 1 }, exit: (dr: number) => ({ x: dr * -60, opacity: 0 }) }}
-          initial="enter" animate="center" exit="exit" transition={{ type: 'spring', stiffness: 380, damping: 36 }}>
-          <TabCard t={t} />
-        </motion.div>
-      </AnimatePresence>
       <div className="dots" aria-hidden="true">{v.tabs.map((x, k) => <motion.span key={x.tab.id} layout className={'pg' + (k === idx ? ' on' : '')} />)}</div>
+      <div className="m-card-stage">
+        <AnimatePresence mode="popLayout" initial={false} custom={dir}>
+          <motion.div key={t.tab.id} custom={dir}
+            variants={{ enter: (dr: number) => ({ x: dr > 0 ? '100%' : '-100%' }), center: { x: '0%' }, exit: (dr: number) => ({ x: dr > 0 ? '-100%' : '100%' }) }}
+            initial="enter" animate="center" exit="exit" transition={{ type: 'spring', stiffness: 380, damping: 36 }}>
+            <TabCard t={t} />
+          </motion.div>
+        </AnimatePresence>
+      </div>
     </motion.main>
   );
 }
