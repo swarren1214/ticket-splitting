@@ -53,6 +53,14 @@ Phones (< 600 px wide) open the mobile view full-screen automatically.
 
 The iPad previews also support `-full` hashes and `?device=<preview>&full`. They use the countertop workflow with wider ticket columns, compact icon-only header actions on smaller tablets, and menus bounded to the actual screen width. Additional tabs remain horizontally scrollable.
 
+### Full-screen iPad testing
+
+Select an iPad preview, then click **Full screen** in the prototype toolbar. The device frame, device switcher and toolbar disappear; the prototype fills the actual viewport, respects safe-area insets, and keeps the current order, payments, selection and undo history. Tablet columns adapt to the available width rather than stretching a scaled device frame.
+
+Use **Ticket actions → Exit full screen** to restore the previews. Escape also exits when no overlay or item selection is active. The URL includes `-full`, so reloading or sharing it keeps the selected full-screen layout.
+
+The button also requests browser full screen where supported. If the browser does not support or allow it, full-window mode still works and shows a notice. To hide Safari's browser controls on iPad, use **Share → Add to Home Screen**, then launch that shortcut; Home Screen launches automatically use full-window mode. Use landscape orientation for the countertop-style iPad workflow.
+
 ## How it's built
 
 - `src/store.ts` — the split engine: tabs, lines (an item or a fraction of one), cent-exact proration of ticket discount/service charge/fees and tax (largest-remainder, with a final balancing pass so an even split is truly even), undo/redo history, and every action. Pure and UI-free, so it can be lifted into the real app or unit-tested.

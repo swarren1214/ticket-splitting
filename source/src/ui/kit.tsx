@@ -3,7 +3,7 @@ import { AnimatePresence, motion, useDragControls } from 'framer-motion';
 import {
   ArrowRight, ArrowUp, Ban, Banknote, Check as CheckIcon, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
   CircleCheck, Columns2, CreditCard, Ellipsis, ExternalLink, FilePlus, GripVertical, House, Info,
-  LoaderCircle, Lock, Merge, Minus, Network, Percent, Plus, Printer, Redo2, Send, Split, Tag, Trash2,
+  LoaderCircle, Lock, Maximize, Merge, Minimize, Minus, Network, Percent, Plus, Printer, Redo2, Send, Split, Tag, Trash2,
   TriangleAlert, Undo2, UserRound, UsersRound, X,
 } from 'lucide-react';
 import type { Action, State } from '../store';
@@ -20,6 +20,7 @@ export interface Ctx {
   s: State; d: React.Dispatch<Action>; v: ReturnType<typeof derive>;
   overlay: Overlay | null; open: (o: Overlay) => void; close: () => void;
   device: Device; scale: number; frameRef: React.RefObject<HTMLDivElement>;
+  full: boolean; exitFull: () => void;
 }
 export const AppCtx = createContext<Ctx>(null as unknown as Ctx);
 export const useApp = () => useContext(AppCtx);
@@ -34,7 +35,7 @@ const icons = {
   down: ChevronDown, up: ChevronUp, right: ChevronRight, pct: Percent,
   alert: TriangleAlert, ok: CircleCheck, grip: GripVertical, send: Send, lock: Lock,
   more: Ellipsis, loader: LoaderCircle,
-  network: Network,
+  network: Network, maximize: Maximize, minimize: Minimize,
 };
 type IconName = keyof typeof icons;
 const MotionCheck = motion.create(CheckIcon);

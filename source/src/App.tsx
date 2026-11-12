@@ -22,17 +22,19 @@ const narrow = window.innerWidth < 600;
 const requestedPreview = params.get('device') || hash.replace(/-full$/, '');
 const initialPreview = (Object.keys(SIZES) as Preview[]).find(k => k === requestedPreview);
 if (requestedPreview && !initialPreview) console.warn(`Unknown device preview: ${requestedPreview}`);
+const standalone = window.matchMedia('(display-mode: standalone)').matches;
 
 export default function App() {
   const [scenario, setScenario] = useState<Scenario>((params.get('scenario') as Scenario) || 'midSplit');
   const [s, d] = useReducer(reducer, scenario, initState);
   const [preview, setPreview] = useState<Preview>(initialPreview ?? (narrow ? 'mobile' : 'counter'));
-  const full = params.has('full') || hash.endsWith('-full') || narrow; // ?full renders edge-to-edge for testing on the real hardware
+  const [full, setFull] = useState(params.has('full') || hash.endsWith('-full') || narrow || standalone);
   const [overlay, setOverlay] = useState<Overlay | null>(null);
   const v = useMemo(() => derive(s.core), [s.core]);
   const frameRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+  const browserFull = useRef(false);
   const size = SIZES[preview];
   const device = size.device;
 
@@ -48,8 +50,56 @@ export default function App() {
     return () => ro.disconnect();
   }, [preview, full]);
 
-  // close overlays that point at a tab that no longer exists, or when switching devices
-  useEffect(() => { setOverlay(null); if (!full) try { history.replaceState(null, '', '#' + preview); } catch { /* sandboxed */ } }, [preview]);
+  const enterFull = () => {
+    setFull(true);
+    if (standalone) return;
+    if (document.fullscreenEnabled && document.documentElement.requestFullscreen) {
+      browserFull.current = true;
+      void document.documentElement.requestFullscreen().catch(error => {
+        browserFull.current = false;
+        console.warn('Browser full screen was blocked; using full-window mode.', error);
+        d({ type: 'TOAST', text: 'Full-window mode is active. The browser blocked hiding its controls.', tone: 'info' });
+      });
+    } else {
+      d({ type: 'TOAST', text: 'Full-window mode. In Safari, use Share > Add to Home Screen to hide browser controls.', tone: 'info' });
+    }
+  };
+  const exitFull = () => {
+    browserFull.current = false;
+    setFull(false);
+    setOverlay(null);
+    if (document.fullscreenElement) {
+      void document.exitFullscreen().catch(error => {
+        console.warn('Could not exit browser full screen.', error);
+        d({ type: 'TOAST', text: 'Preview controls restored. Use your browser to exit browser full screen.', tone: 'info' });
+      });
+    }
+  };
+
+  useEffect(() => {
+    const changed = () => {
+      if (browserFull.current && !document.fullscreenElement) {
+        browserFull.current = false;
+        setFull(false);
+      }
+    };
+    document.addEventListener('fullscreenchange', changed);
+    return () => document.removeEventListener('fullscreenchange', changed);
+  }, []);
+
+  useEffect(() => {
+    const url = new URL(location.href);
+    url.searchParams.delete('full');
+    if (url.searchParams.has('device')) url.searchParams.set('device', preview);
+    url.hash = preview + (full ? '-full' : '');
+    try { history.replaceState(null, '', url); }
+    catch (error) { console.warn('Could not update the prototype preview URL.', error); }
+  }, [preview, full]);
+
+  useEffect(() => { setOverlay(null); }, [preview]);
+  useEffect(() => {
+    setOverlay(current => current?.kind === 'tabMenu' ? null : current);
+  }, [full]);
   useEffect(() => {
     if (overlay && 'tabId' in overlay && !s.core.tabs.some(t => t.id === overlay.tabId) && overlay.kind !== 'newTicket') setOverlay(null);
   }, [s.core.tabs]);
@@ -61,18 +111,21 @@ export default function App() {
         e.preventDefault();
         d({ type: e.shiftKey ? 'REDO' : 'UNDO' });
       }
-      else if (e.key === 'Escape' && !overlay) d({ type: 'CLEAR_SEL' });
+      else if (e.key === 'Escape' && !overlay) {
+        if (s.selected.length) d({ type: 'CLEAR_SEL' });
+        else if (full) exitFull();
+      }
     };
     window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h);
-  }, [overlay]);
+  }, [overlay, full, s.selected.length]);
 
-  const ctx = { s, d, v, overlay, open: setOverlay, close: () => setOverlay(null), device, scale, frameRef };
+  const ctx = { s, d, v, overlay, open: setOverlay, close: () => setOverlay(null), device, scale, frameRef, full, exitFull };
   const reset = (sc: Scenario = scenario) => { setScenario(sc); d({ type: 'RESET', scenario: sc }); setOverlay(null); };
   const allPaid = v.tabs.length > 0 && v.tabs.every(t => t.paid);
   const ended = s.orderVoided || allPaid || v.tabs.length === 0;
 
   const screen = (
-    <div ref={frameRef} className={'screen ' + device + (preview.startsWith('ipad-') ? ' tablet' : '')} style={full ? { width: '100%', height: '100%' } : { width: size.w, height: size.h }}>
+    <div ref={frameRef} className={'screen ' + device + (preview.startsWith('ipad-') || (full && device === 'counter') ? ' tablet' : '')} style={full ? { width: '100%', height: '100%' } : { width: size.w, height: size.h }}>
       {device === 'counter' ? <Countertop /> : <Mobile />}
       <OverlayHost />
       <AnimatePresence>
@@ -93,9 +146,8 @@ export default function App() {
 
   return (
     <AppCtx.Provider value={ctx}>
-      {full ? <div className="full">{screen}</div> : (
-        <div className="shell">
-          <div className="toolbar">
+        <div className={'shell' + (full ? ' full' : '')}>
+          {!full && <div className="toolbar">
             <div className="brand"><span className="brand-mark"><Icon n="split" s={14} /></span>Split Ticket Prototype</div>
             <div className="seg tb" role="tablist" aria-label="Device">
               {(Object.keys(SIZES) as Preview[]).map(k => (
@@ -113,20 +165,21 @@ export default function App() {
               </select>
             </label>
             <button className="btn tb-btn" onClick={() => reset()}><Icon n="undo" s={16} />Reset</button>
-          </div>
+            <button className="btn tb-btn" onClick={enterFull}><Icon n="maximize" s={16} />Full screen</button>
+          </div>}
           <div className="stage" ref={stageRef}>
-            <motion.div key={preview} className={'device ' + device} style={{ scale, transformOrigin: 'center center' }}
-              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+            <motion.div key={preview} className={full ? 'viewport-device' : 'device ' + device}
+              style={full ? { width: '100%', height: '100%', scale: 1 } : { scale, transformOrigin: 'center center' }}
+              initial={full ? false : { opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
               {screen}
             </motion.div>
           </div>
-          <div className="hint">
+          {!full && <div className="hint">
             {device === 'counter'
               ? <>Tap items to select, then tap a tab (or drag). ⌘/Ctrl+Z to undo. Tab <Icon n="more" s={16} /> menus have move, new ticket and remove.</>
               : 'Tap items to select, then tap a tab. Long-press and drag an item onto a tab. Swipe the card to switch tabs.'}
-          </div>
+          </div>}
         </div>
-      )}
     </AppCtx.Provider>
   );
 }

@@ -434,7 +434,7 @@ function TabMenu({ tabId, anchor }: { tabId: string; anchor?: DOMRect }) {
 }
 
 function TicketMenu() {
-  const { close, d, v } = useApp();
+  const { close, d, v, full, exitFull } = useApp();
   const [page, setPage] = useState<'menu' | 'customer' | 'info' | 'adjust' | 'even' | 'cancel' | 'voidOrder'>('menu');
   const [n, setN] = useState(Math.max(2, v.tabs.length));
   const anyPaid = v.tabs.some(t => t.paid);
@@ -472,6 +472,7 @@ function TicketMenu() {
       <button className="li" onClick={() => setPage('adjust')}><Icon n="tag" /><span>Discounts</span></button>
       <button className="li" onClick={() => setPage('adjust')}><Icon n="pct" /><span>Service charges &amp; fees</span></button>
       <button className="li" onClick={() => { d({ type: 'TOAST', text: 'Ticket sent to printer' }); close(); }}><Icon n="print" /><span>Print ticket</span></button>
+      {full && <button className="li" onClick={exitFull}><Icon n="minimize" /><span>Exit full screen</span></button>}
       {(location.protocol === 'http:' || location.protocol === 'https:') && (
         <form method="post" action={'/__access/logout' + location.search + location.hash}>
           <button className="li" type="submit"><Icon n="lock" /><span>Lock prototype</span></button>
