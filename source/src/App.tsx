@@ -18,7 +18,7 @@ const SIZES: Record<Preview, { w: number; h: number; label: string; device: Devi
 // Every preview supports ?device=<preview>&full or #<preview>-full.
 const params = new URLSearchParams(location.search);
 const hash = location.hash.slice(1);
-const narrow = window.innerWidth < 600;
+const handheldViewport = window.matchMedia('(max-width: 599px), (max-height: 599px) and (pointer: coarse)');
 const requestedPreview = params.get('device') || hash.replace(/-full$/, '');
 const initialPreview = (Object.keys(SIZES) as Preview[]).find(k => k === requestedPreview);
 if (requestedPreview && !initialPreview) console.warn(`Unknown device preview: ${requestedPreview}`);
@@ -27,8 +27,9 @@ const standalone = window.matchMedia('(display-mode: standalone)').matches;
 export default function App() {
   const [scenario, setScenario] = useState<Scenario>((params.get('scenario') as Scenario) || 'midSplit');
   const [s, d] = useReducer(reducer, scenario, initState);
-  const [preview, setPreview] = useState<Preview>(initialPreview ?? (narrow ? 'mobile' : 'counter'));
-  const [full, setFull] = useState(params.has('full') || hash.endsWith('-full') || narrow || standalone);
+  const [preview, setPreview] = useState<Preview>(initialPreview ?? (handheldViewport.matches ? 'mobile' : 'counter'));
+  const [full, setFull] = useState(params.has('full') || hash.endsWith('-full') || standalone);
+  const [handheld, setHandheld] = useState(handheldViewport.matches);
   const [overlay, setOverlay] = useState<Overlay | null>(null);
   const v = useMemo(() => derive(s.core), [s.core]);
   const frameRef = useRef<HTMLDivElement>(null);
@@ -36,7 +37,13 @@ export default function App() {
   const [scale, setScale] = useState(1);
   const browserFull = useRef(false);
   const size = SIZES[preview];
-  const device = size.device;
+  const device = full && handheld ? 'mobile' : size.device;
+
+  useEffect(() => {
+    const changed = () => setHandheld(handheldViewport.matches);
+    handheldViewport.addEventListener('change', changed);
+    return () => handheldViewport.removeEventListener('change', changed);
+  }, []);
 
   useLayoutEffect(() => {
     if (full) { setScale(1); return; }
@@ -48,7 +55,7 @@ export default function App() {
     fit();
     const ro = new ResizeObserver(fit); ro.observe(el);
     return () => ro.disconnect();
-  }, [preview, full]);
+  }, [preview, full, device]);
 
   const enterFull = () => {
     setFull(true);
@@ -125,7 +132,7 @@ export default function App() {
   const ended = s.orderVoided || allPaid || v.tabs.length === 0;
 
   const screen = (
-    <div ref={frameRef} className={'screen ' + device + (preview.startsWith('ipad-') || (full && device === 'counter') ? ' tablet' : '')} style={full ? { width: '100%', height: '100%' } : { width: size.w, height: size.h }}>
+    <div ref={frameRef} className={'screen ' + device + (device === 'counter' && (preview.startsWith('ipad-') || full) ? ' tablet' : '')} style={full ? { width: '100%', height: '100%' } : { width: size.w, height: size.h }}>
       {device === 'counter' ? <Countertop /> : <Mobile />}
       <OverlayHost />
       <AnimatePresence>
@@ -157,7 +164,12 @@ export default function App() {
                 </button>
               ))}
             </div>
-            <div style={{ flex: 1 }} />
+            <label className="tb-select tb-device-select">Device
+              <select value={preview} onChange={e => setPreview(e.target.value as Preview)}>
+                {(Object.keys(SIZES) as Preview[]).map(k => <option key={k} value={k}>{SIZES[k].label}</option>)}
+              </select>
+            </label>
+            <div className="toolbar-spacer" />
             <label className="tb-select">Start from
               <select value={scenario} onChange={e => reset(e.target.value as Scenario)}>
                 <option value="midSplit">3 tabs, mid-split</option>

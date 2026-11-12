@@ -49,9 +49,11 @@ See [Vercel Routing Middleware](https://vercel.com/docs/routing-middleware) for 
 | `#ipad-mini` | Landscape iPad mini 8.3": 1133 × 744 logical pixels |
 | `?scenario=unsplit` | Start from one unsplit check instead of 3 tabs |
 
-Phones (< 600 px wide) open the mobile view full-screen automatically.
+Phones open the handheld preview with the prototype controls visible. Use the **Device** dropdown to select any of the five previews; **Reset**, the scenario picker and **Full screen** remain accessible.
 
-The iPad previews also support `-full` hashes and `?device=<preview>&full`. They use the countertop workflow with wider ticket columns, compact icon-only header actions on smaller tablets, and menus bounded to the actual screen width. Additional tabs remain horizontally scrollable.
+On phones, **Full screen** always uses the handheld/mobile layout, even when a countertop or iPad preview is selected or linked with `-full`. Exiting full screen restores the selected preview and device picker. The layout also responds to phone orientation changes.
+
+The iPad previews also support `-full` hashes and `?device=<preview>&full`. On tablet-sized screens they use the countertop workflow with wider ticket columns, compact icon-only header actions on smaller tablets, and menus bounded to the actual screen width. Additional tabs remain horizontally scrollable.
 
 ### Full-screen iPad testing
 

@@ -31,6 +31,8 @@ button:disabled { cursor: default; }
 .tb-select { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #C9CEDA; }
 .tb-select select { height: 36px; border-radius: 10px; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.08); color: #fff; padding: 0 10px; font: inherit; }
 .tb-select option { color: #111; }
+.tb-device-select { display: none; }
+.toolbar-spacer { flex: 1; }
 .btn.tb-btn { height: 36px; background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.18); color: #fff; font-size: 14px; }
 .stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .device { background: #0B0D14; box-shadow: 0 30px 80px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.08); flex: none; }
@@ -41,6 +43,18 @@ button:disabled { cursor: default; }
 .hint { text-align: center; color: #9AA3B8; font-size: 13px; padding: 8px 16px 14px; }
 .hint svg { vertical-align: middle; }
 .full { position: fixed; inset: 0; height: 100%; height: 100dvh; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); background: var(--bg); }
+
+@media (max-width: 599px) {
+  .shell { height: 100dvh; }
+  .toolbar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 12px; }
+  .toolbar { padding-top: max(12px, env(safe-area-inset-top)); }
+  .toolbar .brand, .toolbar .tb-select { grid-column: 1 / -1; }
+  .toolbar .seg.tb, .toolbar-spacer { display: none; }
+  .tb-device-select { display: flex; }
+  .tb-select select { flex: 1; min-width: 0; height: 44px; font-size: 16px; }
+  .btn.tb-btn { height: 44px; }
+  .hint { font-size: 12px; }
+}
 
 .screen { position: relative; overflow: hidden; background: var(--bg); isolation: isolate; }
 .screen.counter { container-type: inline-size; }
