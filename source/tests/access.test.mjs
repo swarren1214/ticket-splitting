@@ -63,7 +63,10 @@ test('incorrect passwords do not issue sessions; successful login unlocks pages 
 
 test('forged cookies and sessions signed with an old password or secret are rejected', async () => {
   const value = session(await login());
-  const tampered = value.slice(0, -1) + (value.endsWith('a') ? 'b' : 'a');
+  const signatureStart = value.lastIndexOf('.') + 1;
+  const tampered = value.slice(0, signatureStart)
+    + (value[signatureStart] === 'a' ? 'b' : 'a')
+    + value.slice(signatureStart + 1);
   for (const cookie of ['__Host-prototype_access=forged', tampered]) {
     assert.equal((await handleAccess(request('/', { headers: { cookie } }), env)).status, 401);
   }

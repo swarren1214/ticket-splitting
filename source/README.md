@@ -18,6 +18,8 @@ npm test               # access and reducer regressions (Node.js 22.6+)
 
 Import the project with **Root Directory `source`**, framework **Vite**, build command `npm run build`, and output directory `dist`. Deploy the project, not just the contents of `dist`: [vercel.json](./vercel.json) registers [proxy.ts](./proxy.ts) as Routing Middleware on **every request**, including application scripts and assets.
 
+The middleware explicitly uses the Node.js runtime. Its relative imports use `.js` extensions because Vercel transpiles TypeScript to JavaScript without adding those extensions; extensionless imports fail at runtime in this ES module project. `npm test` includes a compiled-middleware smoke test, in addition to the password and split-engine tests.
+
 Set these in Vercel **Settings → Environment Variables** for each environment you deploy (Production and Preview), then redeploy:
 
 | Variable | Value |
