@@ -16,8 +16,8 @@ function Row({ l, paid }: { l: LineView; paid: boolean }) {
   const flashing = s.flash.includes(l.itemId + '@' + l.tabId);
   const dragging = drag?.ids.includes(l.id);
   return (
-    <motion.div layout="position" layoutId={l.id} transition={spring}
-      initial={{ opacity: 0 }} animate={{ opacity: dragging ? 0.35 : 1 }} exit={{ opacity: 0, height: 0, transition: { duration: 0.18 } }}
+    <motion.div layout="position" transition={spring}
+      initial={false} animate={{ opacity: dragging ? 0.35 : 1 }} exit={{ opacity: 0, height: 0, transition: { duration: 0.18 } }}
       ref={setNodeRef} {...attributes} {...listeners} role="button" aria-pressed={sel} tabIndex={paid ? -1 : 0}
       className={'row' + (sel ? ' sel' : '') + (paid ? ' paid' : '')}
       onClick={() => !paid && d({ type: 'SELECT', lineId: l.id })}

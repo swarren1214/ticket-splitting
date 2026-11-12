@@ -65,12 +65,14 @@ The button also requests browser full screen where supported. If the browser doe
 
 - `src/store.ts` — the split engine: tabs, lines (an item or a fraction of one), cent-exact proration of ticket discount/service charge/fees and tax (largest-remainder, with a final balancing pass so an even split is truly even), undo/redo history, and every action. Pure and UI-free, so it can be lifted into the real app or unit-tested.
 - `src/countertop/` and `src/mobile/` — the two layouts. `src/ui/overlays.tsx` — dialogs, side panels / bottom sheets and menus shared by both.
-- Framer Motion for animation, dnd-kit for drag and drop (pointer drag on countertop, long-press on mobile).
+- Framer Motion for animation, dnd-kit for drag and drop (mouse drag and touch long-press).
 - Lucide React for all icons, mapped through the shared `Icon` component in `src/ui/kit.tsx`, including animated checkbox checks and the payment loader.
 
 ## Behaviour rules implemented
 
 - Select items → every other tab (and "new tab") becomes a tap target. Drag also works.
+- Countertop/iPad: moved items appear immediately in their destination, without a shared cross-column animation that can hide them inside scrollable columns.
+- Touch screens (including iPads): long-press an item, then drag it to another tab. Scrolling is blocked during the drag; a quick swipe without holding still scrolls normally.
 - Tabs are always named Tab 1, Tab 2, etc., including seat-based splits. Removing a tab or moving it to another ticket renumbers survivors without changing their identities, colors or payments; new tabs continue the current sequence. Undo and redo restore the corresponding numbering.
 - Mobile: Checkout sits inside the active tab card below its total. Even Split, Split by Seat and the up-arrow Send button are grouped in the bottom ticket-action bar. Send saves and sends the splits, matching countertop.
 - Mobile: exiting tabs leave the rail's layout immediately, and layout animations account for horizontal scrolling so the Add tab button stays beside the last tab.

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core';
+import { DndContext, DragOverlay, MouseSensor, TouchSensor, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core';
 import { motion } from 'framer-motion';
 import { useApp } from './kit';
 
@@ -8,9 +8,13 @@ import { useApp } from './kit';
 export function SplitDnd({ children }: { children: React.ReactNode }) {
   const { s, d, device, scale, v } = useApp();
   const [drag, setDrag] = useState<{ ids: string[]; label: string } | null>(null);
-  const sensors = useSensors(useSensor(PointerSensor, {
-    activationConstraint: device === 'counter' ? { distance: 8 } : { delay: 320, tolerance: 8 },
-  }));
+  // TouchSensor can prevent native scrolling once a long press activates the drag.
+  const sensors = useSensors(
+    useSensor(MouseSensor, {
+      activationConstraint: device === 'counter' ? { distance: 8 } : { delay: 320, tolerance: 8 },
+    }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 320, tolerance: 8 } }),
+  );
   const onStart = (e: DragStartEvent) => {
     const id = String(e.active.id);
     const ids = s.selected.includes(id) ? s.selected : [id];
