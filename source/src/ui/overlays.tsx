@@ -277,7 +277,7 @@ function Pay({ tabId }: { tabId: string }) {
     ];
   };
   return (
-    <Panel title={`Checkout ${t.tab.name}`} sub={plural(t.lines.length, 'item')} onClose={phase === 'pick' ? close : () => {}} height={470}>
+    <Panel title={`Pay ${t.tab.name}`} sub={plural(t.lines.length, 'item')} onClose={phase === 'pick' ? close : () => {}} height={470}>
       <div className="pay-amt"><Dot c={t.tab.color} s={14} /><span>{fmt(total)}</span></div>
       <div className="pay-break muted small">Items {fmt(t.b.items)} · Adjustments {fmtSigned(t.b.disc + t.b.sc + t.b.fee)} · Tax {fmt(t.b.tax)}</div>
       <AnimatePresence mode="wait">
@@ -407,7 +407,7 @@ function TabMenu({ tabId, anchor }: { tabId: string; anchor?: DOMRect }) {
   const body = (
     <>
       {device === 'mobile' && !t.paid && (
-        <button className="btn pri big" style={{ width: '100%', marginBottom: 8 }} disabled={empty} onClick={() => open({ kind: 'pay', tabId })}><Icon n="card" />Checkout {t.tab.name} · {fmt(t.b.total)}</button>
+        <button className="btn pri big" style={{ width: '100%', marginBottom: 8 }} disabled={empty} onClick={() => open({ kind: 'pay', tabId })}><Icon n="card" />Pay {t.tab.name} · {fmt(t.b.total)}</button>
       )}
       {moveRow('all', 'Move all items to…', moveAllDisabled)}
       {moveRow('sel', 'Move selected items to…', moveSelDisabled)}

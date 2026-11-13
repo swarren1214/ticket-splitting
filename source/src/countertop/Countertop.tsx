@@ -87,7 +87,7 @@ function Column({ t }: { t: TabView }) {
         {t.paid ? <div className="paid-bar"><Icon n="ok" s={18} />Paid {fmt(t.b.total)}</div>
           : <div className="tab-checkout">
             <button className="btn pri checkout" disabled={!n} onClick={() => open({ kind: 'pay', tabId: t.tab.id })}>
-              <span className="row-flex"><Icon n="card" s={18} />Checkout</span><Money c={t.b.total} /></button>
+              <span className="row-flex"><Icon n="card" s={18} />Pay</span><Money c={t.b.total} /></button>
             <button ref={moreRef} className="ib tab-menu-button" aria-label={`${t.tab.name} actions`} onClick={() => open({ kind: 'tabMenu', tabId: t.tab.id, anchor: moreRef.current!.getBoundingClientRect() })}><Icon n="more" /></button>
           </div>}
       </div>

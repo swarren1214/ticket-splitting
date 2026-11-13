@@ -160,7 +160,7 @@ function TabCard({ t }: { t: TabView }) {
         {t.paid ? <div className="paid-bar m"><Icon n="ok" s={20} />{t.tab.name} paid · {fmt(t.b.total)}</div>
           : <>
             {!s.selected.length && <button className="btn pri checkout m" disabled={!n} onClick={() => open({ kind: 'pay', tabId: t.tab.id })}>
-              <span className="row-flex"><Icon n="card" />Checkout {t.tab.name}</span><Money c={t.b.total} /></button>}
+              <span className="row-flex"><Icon n="card" />Pay {t.tab.name}</span><Money c={t.b.total} /></button>}
             <button className="ib tab-menu-button" aria-label={`${t.tab.name} actions`} onClick={() => open({ kind: 'tabMenu', tabId: t.tab.id })}><Icon n="more" s={22} /></button>
           </>}
       </div>

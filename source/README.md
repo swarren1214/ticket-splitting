@@ -76,8 +76,8 @@ The button also requests browser full screen where supported. If the browser doe
 - Countertop/iPad: moved items appear immediately in their destination, without a shared cross-column animation that can hide them inside scrollable columns.
 - Touch screens (including iPads): long-press an item, then drag it to another tab. Scrolling is blocked during the drag; a quick swipe without holding still scrolls normally.
 - Tabs are always named Tab 1, Tab 2, etc., including seat-based splits. Removing a tab or moving it to another ticket renumbers survivors without changing their identities, colors or payments; new tabs continue the current sequence. Undo and redo restore the corresponding numbering.
-- Mobile: Checkout sits inside the active tab card below its total. Even Split, Split by Seat and the up-arrow Send button are grouped in the bottom ticket-action bar. Send saves and sends the splits, matching countertop.
-- Tab actions sit in a secondary circular ellipsis button to the right of Checkout, not in the tab header. They remain accessible when mobile item selection hides Checkout. Countertop/iPad tab menus open above the button.
+- Mobile: Pay sits inside the active tab card below its total. Even Split, Split by Seat and the up-arrow Send button are grouped in the bottom ticket-action bar. Send saves and sends the splits, matching countertop.
+- Tab actions sit in a secondary circular ellipsis button to the right of Pay, not in the tab header. They remain accessible when mobile item selection hides Pay. Countertop/iPad tab menus open above the button.
 - Mobile: exiting tabs leave the rail's layout immediately, and layout animations account for horizontal scrolling so the Add tab button stays beside the last tab.
 - Mobile: pagination indicators sit above the tab card. Swiping or choosing a tab slides the cards horizontally in the navigation direction, without fading their content.
 - Mobile: the order menu's four split actions use a 2×2 grid.
