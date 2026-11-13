@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { fmt, fmtSigned, type LineView, type TabView } from '../store';
-import { Check, Dot, Icon, Money, NetworkStatus, ToastHost, useApp } from '../ui/kit';
+import { Check, Dot, Icon, ItemDetails, Money, NetworkStatus, ToastHost, useApp } from '../ui/kit';
 import { SplitDnd, useDragging } from '../ui/dnd';
 import { useTabHelpers } from '../ui/overlays';
 import { Banner } from '../countertop/Countertop';
@@ -104,10 +104,7 @@ function MRow({ l, paid }: { l: LineView; paid: boolean }) {
       onClick={() => !paid && d({ type: 'SELECT', lineId: l.id })}>
       {flashing && <motion.span key={s.flashKey} className="flash" initial={{ opacity: 1 }} animate={{ opacity: 0 }} transition={{ duration: 1.6, delay: 0.2 }} />}
       {paid ? <span className="lock"><Icon n="lock" s={16} /></span> : <Check on={sel} label={`Select ${l.item.name}`} onChange={() => d({ type: 'SELECT', lineId: l.id })} />}
-      <div className="row-main">
-        <div className="row-name">{l.item.name}{l.frac && <span className="frac">{l.frac}</span>}{l.item.discountPct && <span className="disc-badge">{l.item.discountPct === 100 ? 'Comp' : `−${l.item.discountPct}%`}</span>}</div>
-        <div className="row-sub">{l.item.mod}{l.note && ` · ${l.note}`}</div>
-      </div>
+      <ItemDetails line={l} />
       <div className="row-price">{l.item.discountPct ? <s className="muted was">{fmt(l.full)}</s> : null}<Money c={l.amount} /></div>
     </motion.div>
   );

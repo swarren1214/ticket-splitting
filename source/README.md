@@ -73,12 +73,15 @@ The button also requests browser full screen where supported. If the browser doe
 ## Behaviour rules implemented
 
 - Select items → every other tab (and "new tab") becomes a tap target. Drag also works.
+- Item rows show the ordered quantity on the detail line (for example, `Qty 1 · Small`). Split badges and share descriptions use percentages, rounded to at most one decimal place (`50%`, `33.3%`); calculations still use exact fractions. A whole item has no share badge. Quantity is the original ordered count, not the fractional count allocated to the tab, and stays consistent in paid and moved-ticket snapshots. Seed quantities are one; item prices remain the full ordered line totals.
+- Countertop/iPad tab headers use matching 14px left and right padding.
 - Countertop/iPad: moved items appear immediately in their destination, without a shared cross-column animation that can hide them inside scrollable columns.
 - Touch screens (including iPads): long-press an item, then drag it to another tab. Scrolling is blocked during the drag; a quick swipe without holding still scrolls normally.
 - Tabs are always named Tab 1, Tab 2, etc., including seat-based splits. Removing a tab or moving it to another ticket renumbers survivors without changing their identities, colors or payments; new tabs continue the current sequence. Undo and redo restore the corresponding numbering.
 - Mobile: Pay sits inside the active tab card below its total. Even Split, Split by Seat and the Send button (using Lucide's Send icon across all layouts) are grouped in the bottom ticket-action bar. Send saves and sends the splits, matching countertop.
 - Tab actions sit in a secondary circular ellipsis button to the right of Pay, not in the tab header. They remain accessible when mobile item selection hides Pay. Countertop/iPad tab menus open above the button.
 - Mobile: exiting tabs leave the rail's layout immediately, and layout animations account for horizontal scrolling so the Add tab button stays beside the last tab.
+- Mobile: the top tab rail scrolls only horizontally; vertical gestures cannot scroll or bounce the rail. Tab content still scrolls vertically.
 - Mobile: pagination indicators sit above the tab card. Swiping or choosing a tab slides the cards horizontally in the navigation direction, without fading their content.
 - Mobile: the order menu's four split actions use a 2×2 grid.
 - Mobile buttons use pill shapes, with circular icon-only buttons and rounded corners for stacked tab selectors and tall, stacked-icon action tiles. The full-width discount, service and fees row has square corners; countertop button shapes are unchanged.

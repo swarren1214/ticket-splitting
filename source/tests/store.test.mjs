@@ -1,6 +1,51 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { derive, initState, reducer } from '../src/store.ts';
+import { derive, initState, reducer, shareLabel } from '../src/store.ts';
+
+test('share percentages round compactly without labeling partial shares as zero or whole', () => {
+  assert.equal(shareLabel(1, 8), '12.5%');
+  assert.equal(shareLabel(2, 3), '66.7%');
+  assert.equal(shareLabel(1, 10000), '<0.1%');
+  assert.equal(shareLabel(9999, 10000), '>99.9%');
+  assert.equal(shareLabel(1, 1), '');
+});
+
+test('item rows distinguish ordered quantity from percentage shares without changing amounts', () => {
+  const initial = initState();
+  const view = derive(initial.core);
+  const burger = view.tabs[0].lines.find(l => l.itemId === 'burger');
+  assert.equal(burger.item.quantity, 1);
+  assert.equal(burger.share, '50%');
+  assert.equal(burger.note, 'Other 50% on Tab 2');
+  assert.equal(burger.amount, 600);
+  assert.equal(view.tabs[0].lines.find(l => l.itemId === 'nuggets').share, '');
+  const combined = reducer(initial, { type: 'MOVE', lineIds: ['l4'], to: 't1' });
+  const wholeBurger = derive(combined.core).tabs[0].lines.find(l => l.itemId === 'burger');
+  assert.equal(wholeBurger.item.quantity, 1);
+  assert.equal(wholeBurger.share, '');
+  assert.equal(wholeBurger.amount, 1200);
+  assert.deepEqual(derive(combined.core).ticket, view.ticket);
+});
+
+test('thirds retain ordered quantities and exact amounts through payment and ticket snapshots', () => {
+  const initial = initState();
+  initial.core.items.nuggets.quantity = 3;
+  initial.core.items.nuggets.price = 2400;
+  const before = derive(initial.core);
+  const split = reducer(initial, { type: 'SPLIT_ITEM', lineId: 'l2', tabIds: ['t1', 't2', 't3'], shares: [1, 1, 1] });
+  const view = derive(split.core);
+  const lines = view.tabs.flatMap(t => t.lines).filter(l => l.itemId === 'nuggets');
+  assert.deepEqual(lines.map(l => [l.item.quantity, l.num, l.den, l.share, l.amount]),
+    [[3, 1, 3, '33.3%', 800], [3, 1, 3, '33.3%', 800], [3, 1, 3, '33.3%', 800]]);
+  assert.deepEqual(view.ticket, before.ticket);
+  const paid = reducer(split, { type: 'PAY', tabId: 't1', method: 'Cash' });
+  const paidLine = derive(paid.core).tabs[0].lines.find(l => l.itemId === 'nuggets');
+  assert.deepEqual([paidLine.item.quantity, paidLine.share, paidLine.amount], [3, '33.3%', 800]);
+  const moved = reducer(paid, { type: 'MOVE_TO_NEW_TICKET', tabId: 't2' });
+  const movedLine = moved.newTickets[0].lines.find(l => l.name === 'Chicken Nuggets');
+  assert.deepEqual([movedLine.quantity, movedLine.share, movedLine.amount], [3, '33.3%', 800]);
+  assert.equal(derive(moved.core).ticket.total + moved.newTickets[0].breakdown.total, before.ticket.total);
+});
 
 test('removing the first tab renumbers survivors without changing identity and supports undo, redo and add', () => {
   const initial = initState();
@@ -48,8 +93,8 @@ test('renumbering refreshes shared-tab references without changing paid snapshot
   assert.deepEqual(removed.core.tabs[0].paid, snapshot);
   assert.equal(removed.core.tabs[0].name, 'Tab 1');
   assert.deepEqual(view.tabs[0].b, snapshot.breakdown);
-  assert.equal(view.tabs[0].lines.find(l => l.itemId === 'burger').note, 'Other ½ on Tab 2');
-  assert.equal(view.tabs[1].lines.find(l => l.itemId === 'burger').note, 'Other ½ on Tab 1');
+  assert.equal(view.tabs[0].lines.find(l => l.itemId === 'burger').note, 'Other 50% on Tab 2');
+  assert.equal(view.tabs[1].lines.find(l => l.itemId === 'burger').note, 'Other 50% on Tab 1');
   assert.equal(view.ticket.total, derive(paid.core).ticket.total);
 });
 

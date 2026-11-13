@@ -1,12 +1,13 @@
 // Split-ticket engine: pure state + reducer. UI never does money math itself.
 
-export interface Item { id: string; name: string; mod: string; price: number; seat: number; discountPct?: number; voided?: boolean; elsewhere?: { ticket: number; num: number; den: number } }
+// price is the ordered line total; quantity is the ordered count, not the tab's share.
+export interface Item { id: string; name: string; mod: string; quantity: number; price: number; seat: number; discountPct?: number; voided?: boolean; elsewhere?: { ticket: number; num: number; den: number } }
 export interface Line { id: string; itemId: string; tabId: string; num: number; den: number }
 export interface Breakdown { items: number; disc: number; sc: number; fee: number; sub: number; tax: number; total: number }
 export interface Tab { id: string; name: string; color: string; paid?: { method: string; breakdown: Breakdown; lines: LineView[] } }
 export interface Adjust { disc: number; sc: number; fee: number }
 export interface Core { tabs: Tab[]; lines: Line[]; items: Record<string, Item>; adjust: Adjust; seq: number; tabSeq: number }
-export interface NewTicket { number: number; tabName: string; color: string; lines: { name: string; mod: string; frac: string; amount: number }[]; breakdown: Breakdown }
+export interface NewTicket { number: number; tabName: string; color: string; lines: { name: string; mod: string; quantity: number; share: string; amount: number }[]; breakdown: Breakdown }
 export interface Toast { id: number; text: string; undo?: boolean; tone?: 'ok' | 'info' }
 export interface Banner { kind: 'newTicket'; ticket: number; text: string }
 
@@ -47,17 +48,22 @@ export function addFrac(a: [number, number], b: [number, number]): [number, numb
   return [n / g, d / g];
 }
 export function reduce(n: number, d: number): [number, number] { const g = gcd(n, d) || 1; return [n / g, d / g]; }
-const GLYPH: Record<string, string> = { '1/2': '½', '1/3': '⅓', '2/3': '⅔', '1/4': '¼', '3/4': '¾', '1/5': '⅕', '2/5': '⅖', '3/5': '⅗', '4/5': '⅘', '1/6': '⅙', '5/6': '⅚', '1/8': '⅛' };
-export const fracLabel = (n: number, d: number) => (n === d ? '' : GLYPH[`${n}/${d}`] ?? `${n}/${d}`);
+export function shareLabel(n: number, d: number): string {
+  if (n === d) return '';
+  const percent = n * 100 / d;
+  if (percent > 0 && percent < 0.1) return '<0.1%';
+  if (percent > 99.9 && percent < 100) return '>99.9%';
+  return `${Math.round(percent * 10) / 10}%`;
+}
 
 // ---------- seed ----------
 const ITEMS: Item[] = [
-  { id: 'burger', name: 'Hamburger', mod: 'Small', price: 1200, seat: 1 },
-  { id: 'nuggets', name: 'Chicken Nuggets', mod: 'Small', price: 800, seat: 1 },
-  { id: 'wings', name: 'Hot Wings', mod: 'Small', price: 1000, seat: 2 },
-  { id: 'fries', name: 'Fries', mod: 'Large', price: 500, seat: 2 },
-  { id: 'tea', name: 'Iced Tea', mod: 'Unsweetened', price: 300, seat: 3 },
-  { id: 'lemonade', name: 'Lemonade', mod: 'Regular', price: 350, seat: 3 },
+  { id: 'burger', name: 'Hamburger', mod: 'Small', quantity: 1, price: 1200, seat: 1 },
+  { id: 'nuggets', name: 'Chicken Nuggets', mod: 'Small', quantity: 1, price: 800, seat: 1 },
+  { id: 'wings', name: 'Hot Wings', mod: 'Small', quantity: 1, price: 1000, seat: 2 },
+  { id: 'fries', name: 'Fries', mod: 'Large', quantity: 1, price: 500, seat: 2 },
+  { id: 'tea', name: 'Iced Tea', mod: 'Unsweetened', quantity: 1, price: 300, seat: 3 },
+  { id: 'lemonade', name: 'Lemonade', mod: 'Regular', quantity: 1, price: 350, seat: 3 },
 ];
 
 export type Scenario = 'midSplit' | 'unsplit';
@@ -89,7 +95,7 @@ export function initState(s: Scenario = 'midSplit'): State {
 }
 
 // ---------- derived ----------
-export interface LineView extends Line { item: Item; amount: number; frac: string; note: string; full: number }
+export interface LineView extends Line { item: Item; amount: number; share: string; note: string; full: number }
 export interface TabView { tab: Tab; lines: LineView[]; b: Breakdown; paid: boolean }
 
 export function derive(core: Core): { tabs: TabView[]; ticket: Breakdown } {
@@ -136,9 +142,9 @@ export function derive(core: Core): { tabs: TabView[]; ticket: Breakdown } {
     const others = related.filter(o => o.itemId === l.itemId && o.id !== l.id);
     let note = '';
     if (l.num !== l.den) {
-      if (others.length === 1) note = `Other ${fracLabel(others[0].num, others[0].den)} on ${tabName(others[0].tabId)}`;
+      if (others.length === 1) note = `Other ${shareLabel(others[0].num, others[0].den)} on ${tabName(others[0].tabId)}`;
       else if (others.length > 1) note = `Shared with ${others.map(o => tabName(o.tabId)).join(', ')}`;
-      else if (item.elsewhere) note = `Other ${fracLabel(item.elsewhere.num, item.elsewhere.den)} on #${item.elsewhere.ticket}`;
+      else if (item.elsewhere) note = `Other ${shareLabel(item.elsewhere.num, item.elsewhere.den)} on #${item.elsewhere.ticket}`;
       if (others.length && item.elsewhere) note += ` · #${item.elsewhere.ticket}`;
     }
     return note;
@@ -147,7 +153,7 @@ export function derive(core: Core): { tabs: TabView[]; ticket: Breakdown } {
     if (t.paid) return { tab: t, lines: t.paid.lines.map(l => ({ ...l, note: noteFor(l, core.lines) })), paid: true, b: t.paid.breakdown };
     const lines: LineView[] = live.filter(l => l.tabId === t.id).map(l => {
       const item = core.items[l.itemId];
-      return { ...l, item, amount: amount[l.id], frac: fracLabel(l.num, l.den), note: noteFor(l, live), full: Math.round((item.price * l.num) / l.den) };
+      return { ...l, item, amount: amount[l.id], share: shareLabel(l.num, l.den), note: noteFor(l, live), full: Math.round((item.price * l.num) / l.den) };
     });
     return { tab: t, lines, paid: false, b: openB[t.id] };
   });
@@ -337,7 +343,7 @@ export function reducer(s: State, a: Action): State {
       c.tabs = c.tabs.filter(x => x.id !== a.tabId);
       c.adjust = { disc: c.adjust.disc - tv.b.disc, sc: c.adjust.sc - tv.b.sc, fee: c.adjust.fee - tv.b.fee };
       const nt: NewTicket = { number: num, tabName: tv.tab.name, color: tv.tab.color, breakdown: tv.b,
-        lines: tv.lines.map(l => ({ name: l.item.name, mod: l.item.mod, frac: l.frac, amount: l.amount })) };
+        lines: tv.lines.map(l => ({ name: l.item.name, mod: l.item.mod, quantity: l.item.quantity, share: l.share, amount: l.amount })) };
       return commitFinal(s, c, { newTickets: [...s.newTickets, nt], nextTicket: num + 1, toast: null,
         banner: { kind: 'newTicket', ticket: num, text: `${tv.tab.name} moved to new Order #${num} · ${plural(tv.lines.length, 'item')} · ${fmt(tv.b.total)}` },
         activeTab: c.tabs[Math.max(0, idx - 1)]?.id ?? '' });

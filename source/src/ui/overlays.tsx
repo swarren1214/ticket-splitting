@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useIsPresent } from 'framer-motion';
-import { allocate, fmt, fmtSigned, reduce, fracLabel, type TabView } from '../store';
+import { allocate, fmt, fmtSigned, reduce, shareLabel, type TabView } from '../store';
 import { AppCtx, Check, Dialog, Dot, Icon, Money, Panel, useApp, useEsc, useModalFocus } from './kit';
 
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
@@ -76,7 +76,7 @@ function NewTicket({ tabId }: { tabId: string }) {
 function CancelSplitsDetails() {
   const { v } = useApp();
   const n = v.tabs.length;
-  const shared = [...new Set(v.tabs.flatMap(t => t.lines.filter(l => l.frac).map(l => l.item.name)))];
+  const shared = [...new Set(v.tabs.flatMap(t => t.lines.filter(l => l.share).map(l => l.item.name)))];
   return (
     <>
       <p className="dlg-p">All {n} tabs merge back into one check for <b>{fmt(v.ticket.total)}</b>.{shared.length ? ` Shared items (${shared.join(', ')}) are recombined.` : ''}</p>
@@ -168,7 +168,7 @@ function SplitItem({ lineId }: { lineId: string }) {
   const ok = targets.length >= 2;
   return (
     <Panel title={device === 'counter' ? 'Split item' : `Split ${line.item.name}`} onClose={close} height={device === 'mobile' ? 600 : undefined}
-      sub={<>{line.item.name} · {fmt(line.amount)}{line.frac ? ` (${line.frac} share)` : ''} · on {v.tabs.find(t => t.tab.id === src)!.tab.name}</>}
+      sub={<>{line.item.name} · {fmt(line.amount)}{line.share ? ` (${line.share} share)` : ''} · on {v.tabs.find(t => t.tab.id === src)!.tab.name}</>}
       footer={<><button className="btn grow" onClick={close}>Cancel</button><button className="btn pri grow2" disabled={!ok} onClick={() => { d({ type: 'SPLIT_ITEM', lineId, tabIds: targets, shares: sh }); close(); }}>
         {ok ? `Split between ${targets.length} tabs` : 'Pick at least 2 tabs'}</button></>}>
       <div className="lbl">Split between</div>
@@ -188,7 +188,7 @@ function SplitItem({ lineId }: { lineId: string }) {
             return (
               <motion.div key={t} className="share-row" layout initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
                 <Dot c={colorOf(t)} />
-                <div style={{ flex: 1 }}><div className="opt-t">{nameOf(t)} <span className="frac">{fracLabel(n, dd) || '1'}</span></div><div className="muted opt-s"><Money c={amounts[k]} /></div></div>
+                <div style={{ flex: 1 }}><div className="opt-t">{nameOf(t)} <span className="share-badge">{shareLabel(n, dd) || '100%'}</span></div><div className="muted opt-s"><Money c={amounts[k]} /></div></div>
                 {mode === 'custom' && (
                   <div className="stepper sm">
                     <button className="ib gh" aria-label={`Fewer shares for ${nameOf(t)}`} disabled={sh[k] <= 1} onClick={() => setShares({ ...shares, [t]: sh[k] - 1 })}><Icon n="minus" s={18} /></button>
@@ -357,7 +357,7 @@ function ViewTicket({ number }: { number: number }) {
   return (
     <Panel title={`Order #${t.number}`} sub={`New ticket · from ${t.tabName} on #184`} onClose={close} height={560}
       footer={<button className="btn pri grow" onClick={close}><Icon n="back" />Back to Order #184</button>}>
-      <div className="nt-list">{t.lines.map((l, k) => <div key={k} className="kv nt-row"><span><b>{l.name}</b> {l.frac && <span className="frac">{l.frac}</span>}<span className="muted small" style={{ display: 'block' }}>{l.mod}</span></span><span style={{ fontWeight: 600 }}>{fmt(l.amount)}</span></div>)}</div>
+      <div className="nt-list">{t.lines.map((l, k) => <div key={k} className="kv nt-row"><span><b>{l.name}</b> {l.share && <span className="share-badge">{l.share}</span>}<span className="muted small" style={{ display: 'block' }}>Qty {l.quantity} · {l.mod}</span></span><span style={{ fontWeight: 600 }}>{fmt(l.amount)}</span></div>)}</div>
       <div className="kvs">{[['Adjustments', fmtSigned(t.breakdown.disc + t.breakdown.sc + t.breakdown.fee)], ['Tax', fmt(t.breakdown.tax)]].map(([k, val]) => <div key={k} className="kv"><span className="muted">{k}</span><span>{val}</span></div>)}
         <div className="kv" style={{ fontWeight: 700, fontSize: 18 }}><span>Total</span><span>{fmt(t.breakdown.total)}</span></div></div>
     </Panel>

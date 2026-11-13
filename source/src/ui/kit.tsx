@@ -6,7 +6,7 @@ import {
   LoaderCircle, Lock, Maximize, Merge, Minimize, Minus, Network, Percent, Plus, Printer, Redo2, Send, Split, Tag, Trash2,
   TriangleAlert, Undo2, UserRound, UsersRound, X,
 } from 'lucide-react';
-import type { Action, State } from '../store';
+import type { Action, LineView, State } from '../store';
 import { derive } from '../store';
 
 // ---------- app context ----------
@@ -43,6 +43,24 @@ const MotionCheck = motion.create(CheckIcon);
 export function Icon({ n, s = 20, w = 2 }: { n: IconName; s?: number; w?: number }) {
   const LucideIcon = icons[n];
   return <LucideIcon size={s} strokeWidth={w} aria-hidden="true" focusable="false" style={{ flexShrink: 0 }} />;
+}
+
+export function ItemDetails({ line }: { line: LineView }) {
+  const { item, share, note } = line;
+  const description = item.mod + (note ? ` · ${note}` : '');
+  return (
+    <div className="row-main">
+      <div className="row-name">
+        <span className="item-name" title={item.name}>{item.name}</span>
+        {share && <span className="share-badge">{share}</span>}
+        {item.discountPct && <span className="disc-badge">{item.discountPct === 100 ? 'Comp' : `−${item.discountPct}%`}</span>}
+      </div>
+      <div className="row-sub">
+        <span className="row-qty">Qty {item.quantity}</span><span aria-hidden="true">·</span>
+        <span className="row-description" title={description}>{description}</span>
+      </div>
+    </div>
+  );
 }
 
 export function NetworkStatus({ compact = false }: { compact?: boolean }) {
