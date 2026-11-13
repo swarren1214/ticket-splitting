@@ -2,7 +2,8 @@
 
 // price is the ordered line total; quantity is the ordered count, not the tab's share.
 export interface Item { id: string; name: string; mod: string; quantity: number; price: number; seat: number; discountPct?: number; voided?: boolean; elsewhere?: { ticket: number; num: number; den: number } }
-export interface Line { id: string; itemId: string; tabId: string; num: number; den: number }
+export interface LinePricing { key: string; item: Item; num: number; den: number; amount: number; full: number }
+export interface Line { id: string; itemId: string; tabId: string; num: number; den: number; pricing?: LinePricing }
 export interface Breakdown { items: number; disc: number; sc: number; fee: number; sub: number; tax: number; total: number }
 export interface Tab { id: string; name: string; color: string; paid?: { method: string; breakdown: Breakdown; lines: LineView[] } }
 export interface Adjust { disc: number; sc: number; fee: number }
@@ -98,17 +99,24 @@ export function initState(s: Scenario = 'midSplit'): State {
 export interface LineView extends Line { item: Item; amount: number; share: string; note: string; full: number }
 export interface TabView { tab: Tab; lines: LineView[]; b: Breakdown; paid: boolean }
 
+const itemFor = (core: Core, line: Line) => line.pricing?.item ?? core.items[line.itemId];
+const priceKey = (line: Line) => line.pricing ? 'price:' + line.pricing.key : 'item:' + line.itemId;
+// A reopened share keeps its recorded cents as the basis for subsequent moves and splits.
+const valueFor = (core: Core, line: Line) => line.pricing
+  ? line.pricing.amount * line.pricing.den / line.pricing.num
+  : itemFor(core, line).price * (100 - (itemFor(core, line).discountPct ?? 0)) / 100;
+
 export function derive(core: Core): { tabs: TabView[]; ticket: Breakdown } {
-  const live = core.lines.filter(l => !core.items[l.itemId].voided);
+  const paidIds = new Set(core.tabs.filter(t => t.paid).map(t => t.id));
+  const paidLines = new Set(core.tabs.flatMap(t => t.paid?.lines.map(l => l.id) ?? []));
+  const live = core.lines.filter(l => paidIds.has(l.tabId) ? paidLines.has(l.id) : !itemFor(core, l).voided);
   // per-line amounts
   const amount: Record<string, number> = {};
   const byItem: Record<string, Line[]> = {};
-  const paidIds = new Set(core.tabs.filter(t => t.paid).map(t => t.id));
-  live.filter(l => !paidIds.has(l.tabId)).forEach(l => (byItem[l.itemId] ||= []).push(l));
+  live.filter(l => !paidIds.has(l.tabId)).forEach(l => (byItem[priceKey(l)] ||= []).push(l));
   const running: Record<string, number> = {};
-  for (const [id, ls] of Object.entries(byItem)) {
-    const it = core.items[id];
-    const eff = Math.round((it.price * (100 - (it.discountPct ?? 0))) / 100);
+  for (const ls of Object.values(byItem)) {
+    const eff = ls[0].pricing ? valueFor(core, ls[0]) : Math.round(valueFor(core, ls[0]));
     const share = ls.reduce((a, l) => a + l.num / l.den, 0);
     allocate(Math.round(eff * share), ls.map(l => l.num / l.den), ls.map(l => running[l.tabId] ?? 0))
       .forEach((v, k) => { amount[ls[k].id] = v; running[ls[k].tabId] = (running[ls[k].tabId] ?? 0) + v; });
@@ -126,8 +134,7 @@ export function derive(core: Core): { tabs: TabView[]; ticket: Breakdown } {
   const tax = alloc(Math.round((taxable.reduce((a, b) => a + b, 0) + paidSub) * TAX_RATE) - paidTax, taxable.map(v => Math.max(0, v)));
   // Final balance pass: every adjustment and tax is proportional to item value, so each tab's fair total is
   // (open total × its exact, unrounded item share). Rounding drift (±1–2¢) is absorbed into that tab's tax line.
-  const exact = openTabs.map(t => live.filter(l => l.tabId === t.id).reduce((a, l) => {
-    const it = core.items[l.itemId]; return a + (it.price * (100 - (it.discountPct ?? 0)) / 100) * l.num / l.den; }, 0));
+  const exact = openTabs.map(t => live.filter(l => l.tabId === t.id).reduce((a, l) => a + valueFor(core, l) * l.num / l.den, 0));
   const totals = taxable.map((v, i) => v + tax[i]);
   const target = allocate(totals.reduce((a, b) => a + b, 0), exact);
   const openB: Record<string, Breakdown> = {};
@@ -152,8 +159,9 @@ export function derive(core: Core): { tabs: TabView[]; ticket: Breakdown } {
   const tabs = core.tabs.map(t => {
     if (t.paid) return { tab: t, lines: t.paid.lines.map(l => ({ ...l, note: noteFor(l, core.lines) })), paid: true, b: t.paid.breakdown };
     const lines: LineView[] = live.filter(l => l.tabId === t.id).map(l => {
-      const item = core.items[l.itemId];
-      return { ...l, item, amount: amount[l.id], share: shareLabel(l.num, l.den), note: noteFor(l, live), full: Math.round((item.price * l.num) / l.den) };
+      const item = itemFor(core, l);
+      const full = l.pricing ? l.pricing.full * l.pricing.den / l.pricing.num : item.price;
+      return { ...l, item, amount: amount[l.id], share: shareLabel(l.num, l.den), note: noteFor(l, live), full: Math.round(full * l.num / l.den) };
     });
     return { tab: t, lines, paid: false, b: openB[t.id] };
   });
@@ -168,12 +176,21 @@ function normalize(c: Core): Core {
   c.tabSeq = c.tabs.length;
   const out: Line[] = [];
   for (const l of c.lines) {
-    const m = out.find(o => o.itemId === l.itemId && o.tabId === l.tabId);
+    const m = out.find(o => priceKey(o) === priceKey(l) && o.tabId === l.tabId);
     if (m) { const [n, d] = addFrac([m.num, m.den], [l.num, l.den]); m.num = n; m.den = d; }
     else out.push({ ...l });
   }
   c.lines = out;
   return c;
+}
+function itemShares(lines: Line[]): Line[] {
+  const groups = new Map<string, Line>();
+  for (const l of lines) {
+    const key = priceKey(l), existing = groups.get(key);
+    if (existing) [existing.num, existing.den] = addFrac([existing.num, existing.den], [l.num, l.den]);
+    else groups.set(key, { ...l });
+  }
+  return [...groups.values()];
 }
 function newTab(c: Core): Tab {
   c.tabSeq = c.tabs.length + 1;
@@ -199,6 +216,7 @@ export type Action =
   | { type: 'VOID_ITEMS'; itemIds: string[] }
   | { type: 'SET_ADJ'; key: keyof Adjust; on: boolean }
   | { type: 'PAY'; tabId: string; method: string }
+  | { type: 'VOID_PAYMENT'; tabId: string }
   | { type: 'MOVE_TO_NEW_TICKET'; tabId: string }
   | { type: 'VOID_ORDER' } | { type: 'SEND' }
   | { type: 'UNDO' } | { type: 'REDO' }
@@ -234,7 +252,7 @@ export function reducer(s: State, a: Action): State {
       return { ...s, selected: on ? s.selected.filter(x => x !== a.lineId) : [...s.selected, a.lineId] };
     }
     case 'SELECT_TAB': {
-      const ids = s.core.lines.filter(l => l.tabId === a.tabId && !s.core.items[l.itemId].voided).map(l => l.id);
+      const ids = s.core.lines.filter(l => l.tabId === a.tabId && !itemFor(s.core, l).voided).map(l => l.id);
       const all = ids.length > 0 && ids.every(i => s.selected.includes(i));
       return { ...s, selected: all ? s.selected.filter(i => !ids.includes(i)) : [...new Set([...s.selected, ...ids])] };
     }
@@ -252,7 +270,7 @@ export function reducer(s: State, a: Action): State {
     }
     case 'MOVE_ALL': {
       const dest = a.to === 'new' ? newTab(c) : tabById(a.to);
-      const moving = c.lines.filter(l => l.tabId === a.from && !c.items[l.itemId].voided);
+      const moving = c.lines.filter(l => l.tabId === a.from && !itemFor(c, l).voided);
       moving.forEach(l => (l.tabId = dest.id));
       return commit(s, c, { toast: toast(`Moved ${plural(moving.length, 'item')} from ${tabById(a.from).name} to ${dest.name}`), flash: flashFor(c, dest.id, moving.map(l => l.itemId)), flashKey: s.flashKey + 1 });
     }
@@ -276,7 +294,7 @@ export function reducer(s: State, a: Action): State {
     case 'SPLIT_ITEMS': {
       const selected = new Set(a.lineIds);
       const lines = c.lines.filter(l => selected.has(l.id));
-      if (!selected.size || lines.length !== selected.size || lines.some(l => c.items[l.itemId].voided || tabById(l.tabId).paid)) {
+      if (!selected.size || lines.length !== selected.size || lines.some(l => itemFor(c, l).voided || tabById(l.tabId).paid)) {
         return { ...s, toast: toast('Select available unpaid items to split.', false, 'info') };
       }
       if (a.tabIds.length < 2 || new Set(a.tabIds).size !== a.tabIds.length || a.shares.length !== a.tabIds.length ||
@@ -289,45 +307,49 @@ export function reducer(s: State, a: Action): State {
       c.lines = c.lines.filter(l => !selected.has(l.id));
       lines.forEach(l => destIds.forEach((tid, k) => {
         const [n, d] = reduce(l.num * a.shares[k], l.den * S);
-        c.lines.push({ id: nid(c), itemId: l.itemId, tabId: tid, num: n, den: d });
+        c.lines.push({ ...l, id: nid(c), tabId: tid, num: n, den: d });
       }));
       const itemIds = [...new Set(lines.map(l => l.itemId))];
-      const subject = lines.length === 1 ? c.items[lines[0].itemId].name : plural(lines.length, 'item');
+      const subject = lines.length === 1 ? itemFor(c, lines[0]).name : plural(lines.length, 'item');
       return commit(s, c, { toast: toast(`${subject} split between ${destIds.length} tabs`),
         flash: destIds.flatMap(t => itemIds.map(id => id + '@' + t)), flashKey: s.flashKey + 1 });
     }
     case 'EVEN_SPLIT': {
-      const share: Record<string, [number, number]> = {};
-      c.lines.forEach(l => (share[l.itemId] = share[l.itemId] ? addFrac(share[l.itemId], [l.num, l.den]) : [l.num, l.den]));
+      const shares = itemShares(c.lines);
       c.tabs = []; c.tabSeq = 0; c.lines = [];
       const tabs = Array.from({ length: a.n }, () => newTab(c));
-      for (const [itemId, [n, d]] of Object.entries(share)) tabs.forEach(t => { const [rn, rd] = reduce(n, d * a.n); c.lines.push({ id: nid(c), itemId, tabId: t.id, num: rn, den: rd }); });
+      shares.forEach(l => tabs.forEach(t => { const [n, d] = reduce(l.num, l.den * a.n); c.lines.push({ ...l, id: nid(c), tabId: t.id, num: n, den: d }); }));
       return commit(s, c, { activeTab: tabs[0].id, toast: toast(`Split evenly ${a.n} ways`) });
     }
     case 'BY_SEAT': {
-      const share: Record<string, [number, number]> = {};
-      c.lines.forEach(l => (share[l.itemId] = share[l.itemId] ? addFrac(share[l.itemId], [l.num, l.den]) : [l.num, l.den]));
-      const seats = [...new Set(Object.keys(share).map(id => c.items[id].seat))].sort();
+      const shares = itemShares(c.lines);
+      const seats = [...new Set(shares.map(l => itemFor(c, l).seat))].sort();
       c.tabs = []; c.tabSeq = 0; c.lines = [];
       const bySeat: Record<number, Tab> = {};
       seats.forEach(st => (bySeat[st] = newTab(c)));
-      for (const [itemId, [n, d]] of Object.entries(share)) c.lines.push({ id: nid(c), itemId, tabId: bySeat[c.items[itemId].seat].id, num: n, den: d });
+      shares.forEach(l => c.lines.push({ ...l, id: nid(c), tabId: bySeat[itemFor(c, l).seat].id }));
       return commit(s, c, { activeTab: c.tabs[0].id, toast: toast(`Split by seat · ${plural(seats.length, 'tab')}`) });
     }
     case 'CANCEL_SPLITS': {
-      const share: Record<string, [number, number]> = {};
-      c.lines.forEach(l => (share[l.itemId] = share[l.itemId] ? addFrac(share[l.itemId], [l.num, l.den]) : [l.num, l.den]));
+      const shares = itemShares(c.lines);
       c.tabs = []; c.tabSeq = 0; c.lines = [];
       const t = newTab(c);
-      for (const [itemId, [n, d]] of Object.entries(share)) c.lines.push({ id: nid(c), itemId, tabId: t.id, num: n, den: d });
+      shares.forEach(l => c.lines.push({ ...l, id: nid(c), tabId: t.id }));
       return commit(s, c, { activeTab: t.id, toast: toast('Splits cancelled · back to one check') });
     }
     case 'DISCOUNT_ITEMS': {
       a.itemIds.forEach(id => (c.items[id].discountPct = a.pct || undefined));
+      c.lines.forEach(l => {
+        if (l.pricing && a.itemIds.includes(l.itemId) && !tabById(l.tabId).paid) {
+          l.pricing.item.discountPct = a.pct || undefined;
+          l.pricing.amount = Math.round(l.pricing.full * (100 - a.pct) / 100);
+        }
+      });
       return commit(s, c, { toast: toast(a.pct ? `${a.pct === 100 ? 'Comped' : a.pct + '% off'} · ${plural(a.itemIds.length, 'item')}` : 'Discount removed') });
     }
     case 'VOID_ITEMS': {
       a.itemIds.forEach(id => (c.items[id].voided = true));
+      c.lines.forEach(l => { if (l.pricing && a.itemIds.includes(l.itemId) && !tabById(l.tabId).paid) l.pricing.item.voided = true; });
       return commit(s, c, { toast: toast(`Voided ${plural(a.itemIds.length, 'item')}`) });
     }
     case 'SET_ADJ': {
@@ -345,13 +367,29 @@ export function reducer(s: State, a: Action): State {
       const nextOpen = c.tabs.find(x => !x.paid)?.id ?? a.tabId;
       return commitFinal(s, c, { toast: toast(`${t.name} paid · ${fmt(tv.b.total)} ${a.method}`, false), activeTab: s.activeTab === a.tabId ? nextOpen : s.activeTab });
     }
+    case 'VOID_PAYMENT': {
+      const t = c.tabs.find(t => t.id === a.tabId);
+      if (!t?.paid) return { ...s, toast: toast('This tab no longer has a payment to void.', false, 'info') };
+      const payment = t.paid;
+      c.lines = c.lines.filter(l => l.tabId !== t.id);
+      c.lines.push(...payment.lines.map(l => ({
+        id: l.id, itemId: l.itemId, tabId: t.id, num: l.num, den: l.den,
+        pricing: { key: l.id, item: { ...l.item }, amount: l.amount, full: l.full, num: l.num, den: l.den },
+      })));
+      c.adjust = { disc: c.adjust.disc + payment.breakdown.disc, sc: c.adjust.sc + payment.breakdown.sc, fee: c.adjust.fee + payment.breakdown.fee };
+      delete t.paid;
+      return commitFinal(s, c, { activeTab: t.id, flash: [], toast: toast(`${t.name} payment voided · reopened`, false) });
+    }
     case 'MOVE_TO_NEW_TICKET': {
       const tv = derive(s.core).tabs.find(t => t.tab.id === a.tabId)!;
       const num = s.nextTicket;
-      const moved = c.lines.filter(l => l.tabId === a.tabId);
+      const moved = tv.lines;
+      const movedShares = new Map<string, [number, number]>();
       moved.forEach(l => {
-        const others = c.lines.filter(o => o.itemId === l.itemId && o.tabId !== a.tabId);
-        if (others.length) c.items[l.itemId].elsewhere = { ticket: num, num: l.num, den: l.den };
+        movedShares.set(l.itemId, addFrac(movedShares.get(l.itemId) ?? [0, 1], [l.num, l.den]));
+      });
+      movedShares.forEach(([n, d], itemId) => {
+        if (c.lines.some(l => l.itemId === itemId && l.tabId !== a.tabId)) c.items[itemId].elsewhere = { ticket: num, num: n, den: d };
       });
       c.lines = c.lines.filter(l => l.tabId !== a.tabId);
       const idx = c.tabs.findIndex(x => x.id === a.tabId);

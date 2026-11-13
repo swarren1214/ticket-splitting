@@ -187,6 +187,135 @@ test('duplicate payment does not change totals or the recorded payment', () => {
   assert.equal(repeated.core.tabs[0].paid.method, 'Card');
 });
 
+test('voiding a payment restores recorded charges, reopens the tab and clears payment history', () => {
+  const initial = initState();
+  const paid = reducer(initial, { type: 'PAY', tabId: 't1', method: 'Cash' });
+  const snapshot = paid.core.tabs[0].paid;
+  let edited = reducer(paid, { type: 'ADD_TAB' });
+  edited = reducer(edited, { type: 'MOVE', lineIds: ['l7'], to: edited.core.tabs.at(-1).id });
+  edited = reducer(edited, { type: 'UNDO' });
+  assert.ok(edited.past.length && edited.future.length);
+  const reopened = reducer(edited, { type: 'VOID_PAYMENT', tabId: 't1' });
+  const view = derive(reopened.core);
+  assert.equal(view.tabs[0].paid, false);
+  assert.equal(reopened.activeTab, 't1');
+  assert.deepEqual(view.tabs[0].lines.map(l => [l.item, l.num, l.den, l.amount, l.full]),
+    snapshot.lines.map(l => [l.item, l.num, l.den, l.amount, l.full]));
+  assert.deepEqual(view.tabs[0].b, snapshot.breakdown);
+  assert.deepEqual(reopened.core.adjust, initial.core.adjust);
+  assert.deepEqual(reopened.past, []);
+  assert.deepEqual(reopened.future, []);
+  assert.deepEqual(reopened.selected, []);
+  assert.equal(reopened.toast.undo, false);
+  assert.equal(view.ticket.total, derive(edited.core).ticket.total);
+  const repeated = reducer(reopened, { type: 'VOID_PAYMENT', tabId: 't1' });
+  assert.equal(repeated.core, reopened.core);
+  assert.equal(repeated.toast.tone, 'info');
+  const missing = reducer(reopened, { type: 'VOID_PAYMENT', tabId: 'missing' });
+  assert.equal(missing.core, reopened.core);
+  assert.equal(missing.toast.tone, 'info');
+  const repaid = reducer(reopened, { type: 'PAY', tabId: 't1', method: 'Card' });
+  assert.deepEqual(derive(repaid.core).tabs[0].b, snapshot.breakdown);
+  assert.equal(repaid.core.tabs[0].paid.method, 'Card');
+});
+
+for (const action of [
+  { type: 'DISCOUNT_ITEMS', itemIds: ['burger'], pct: 50 },
+  { type: 'VOID_ITEMS', itemIds: ['burger'] },
+]) {
+  test(`voiding payment preserves recorded items after ${action.type} without changing other paid tabs`, () => {
+    const paid = reducer(initState(), { type: 'PAY', tabId: 't1', method: 'Cash' });
+    const snapshot = paid.core.tabs[0].paid;
+    const changed = reducer(paid, action);
+    const otherPaid = reducer(changed, { type: 'PAY', tabId: 't3', method: 'Card' });
+    const before = derive(otherPaid.core);
+    const reopened = reducer(otherPaid, { type: 'VOID_PAYMENT', tabId: 't1' });
+    const after = derive(reopened.core);
+    assert.deepEqual(after.tabs[0].lines.map(l => [l.item, l.num, l.den, l.amount, l.full]),
+      snapshot.lines.map(l => [l.item, l.num, l.den, l.amount, l.full]));
+    assert.deepEqual(after.tabs[1].lines.map(l => [l.item, l.num, l.den, l.amount, l.full]),
+      before.tabs[1].lines.map(l => [l.item, l.num, l.den, l.amount, l.full]));
+    assert.deepEqual(reopened.core.tabs[2].paid, otherPaid.core.tabs[2].paid);
+    assert.deepEqual(after.tabs[2].b, before.tabs[2].b);
+    assert.equal(after.ticket.total, before.ticket.total);
+    assert.deepEqual(reopened.core.items, otherPaid.core.items);
+    if (action.type === 'VOID_ITEMS') {
+      const paidRemainder = reducer(reopened, { type: 'PAY', tabId: 't2', method: 'Cash' });
+      assert.equal(derive(paidRemainder.core).tabs[0].lines.find(l => l.itemId === 'burger').note, '');
+    }
+    const selected = reducer(reopened, { type: 'SELECT_TAB', tabId: 't1' });
+    assert.ok(selected.selected.includes('l1'));
+    const split = reducer(selected, { type: 'SPLIT_ITEMS', lineIds: ['l1'], tabIds: ['t1', 'new'], shares: [1, 1] });
+    assert.equal(derive(split.core).tabs.flatMap(t => t.lines).filter(l => l.itemId === 'burger' && l.pricing)
+      .reduce((sum, l) => sum + l.amount, 0), 600);
+  });
+}
+
+test('reopened odd-cent shares keep their recorded price through moves and every split operation', () => {
+  const initial = initState();
+  initial.core.items.burger.price = 1000;
+  const thirds = reducer(initial, { type: 'EVEN_SPLIT', n: 3 });
+  const tabId = thirds.core.tabs[0].id;
+  const paid = reducer(thirds, { type: 'PAY', tabId, method: 'Card' });
+  const recorded = paid.core.tabs[0].paid.lines.find(l => l.itemId === 'burger');
+  assert.equal(recorded.amount, 334);
+  const discounted = reducer(paid, { type: 'DISCOUNT_ITEMS', itemIds: ['burger'], pct: 50 });
+  const reopened = reducer(discounted, { type: 'VOID_PAYMENT', tabId });
+  const view = derive(reopened.core);
+  const restored = view.tabs[0].lines.find(l => l.itemId === 'burger');
+  assert.equal(restored.amount, recorded.amount);
+  assert.equal(restored.full, recorded.full);
+  assert.deepEqual(restored.item, recorded.item);
+  const moved = reducer(reopened, { type: 'MOVE', lineIds: [restored.id], to: 'new' });
+  const destination = moved.core.tabs.at(-1).id;
+  assert.equal(derive(moved.core).tabs.at(-1).lines[0].amount, 334);
+  const split = reducer(moved, { type: 'SPLIT_ITEMS', lineIds: [restored.id], tabIds: [destination, 'new'], shares: [1, 2] });
+  assert.deepEqual(derive(split.core).tabs.flatMap(t => t.lines).filter(l => l.itemId === 'burger' && l.pricing).map(l => l.amount), [111, 223]);
+  for (const action of [{ type: 'EVEN_SPLIT', n: 4 }, { type: 'BY_SEAT' }, { type: 'CANCEL_SPLITS' }]) {
+    const regrouped = derive(reducer(reopened, action).core);
+    assert.equal(regrouped.tabs.flatMap(t => t.lines).filter(l => l.itemId === 'burger' && l.pricing)
+      .reduce((sum, l) => sum + l.amount, 0), 334);
+    assert.equal(regrouped.ticket.total, view.ticket.total);
+  }
+  const combined = reducer(reopened, { type: 'MOVE_ALL', from: tabId, to: reopened.core.tabs[1].id });
+  const transferred = reducer(combined, { type: 'MOVE_TO_NEW_TICKET', tabId: reopened.core.tabs[1].id });
+  assert.deepEqual(transferred.core.items.burger.elsewhere, { ticket: 185, num: 2, den: 3 });
+  assert.equal(derive(transferred.core).tabs.flatMap(t => t.lines).find(l => l.itemId === 'burger').note, 'Other 66.7% on #185');
+  assert.ok(transferred.newTickets[0].lines.some(l => l.name === 'Hamburger' && l.amount === recorded.amount));
+  const voidedOthers = reducer(paid, { type: 'VOID_ITEMS', itemIds: ['burger'] });
+  const restoredAfterVoid = reducer(voidedOthers, { type: 'VOID_PAYMENT', tabId });
+  const combinedAfterVoid = reducer(restoredAfterVoid, { type: 'MOVE_ALL', from: tabId, to: reopened.core.tabs[1].id });
+  const transferredAfterVoid = reducer(combinedAfterVoid, { type: 'MOVE_TO_NEW_TICKET', tabId: reopened.core.tabs[1].id });
+  assert.deepEqual(transferredAfterVoid.core.items.burger.elsewhere, { ticket: 185, num: 1, den: 3 });
+  assert.deepEqual(transferredAfterVoid.newTickets[0].lines.filter(l => l.name === 'Hamburger').map(l => l.amount), [334]);
+});
+
+test('voiding one fully paid tab preserves every other payment and permits repayment', () => {
+  let state = initState();
+  for (const tab of state.core.tabs) state = reducer(state, { type: 'PAY', tabId: tab.id, method: 'Card' });
+  const before = derive(state.core);
+  const reopened = reducer(state, { type: 'VOID_PAYMENT', tabId: 't2' });
+  const after = derive(reopened.core);
+  assert.deepEqual(after.tabs.map(t => t.paid), [true, false, true]);
+  assert.deepEqual(after.tabs.map(t => t.b), before.tabs.map(t => t.b));
+  assert.deepEqual(reopened.core.tabs[0].paid, state.core.tabs[0].paid);
+  assert.deepEqual(reopened.core.tabs[2].paid, state.core.tabs[2].paid);
+  const repaid = reducer(reopened, { type: 'PAY', tabId: 't2', method: 'Cash' });
+  assert.deepEqual(derive(repaid.core).ticket, before.ticket);
+});
+
+test('new discounts and item voids remain editable after voiding a payment', () => {
+  const paid = reducer(initState(), { type: 'PAY', tabId: 't1', method: 'Cash' });
+  const reopened = reducer(paid, { type: 'VOID_PAYMENT', tabId: 't1' });
+  const discounted = reducer(reopened, { type: 'DISCOUNT_ITEMS', itemIds: ['burger'], pct: 50 });
+  const burgers = derive(discounted.core).tabs.flatMap(t => t.lines).filter(l => l.itemId === 'burger');
+  assert.deepEqual(burgers.map(l => [l.item.discountPct, l.amount]), [[50, 300], [50, 300]]);
+  const voided = reducer(discounted, { type: 'VOID_ITEMS', itemIds: ['burger'] });
+  assert.ok(derive(voided.core).tabs.every(t => !t.lines.some(l => l.itemId === 'burger')));
+  const undone = reducer(voided, { type: 'UNDO' });
+  assert.deepEqual(derive(undone.core), derive(discounted.core));
+});
+
 for (const action of [
   { type: 'DISCOUNT_ITEMS', itemIds: ['burger'], pct: 50 },
   { type: 'VOID_ITEMS', itemIds: ['burger'] },

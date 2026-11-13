@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { fmt, type LineView, type TabView } from '../store';
-import { Check, Dot, Icon, ItemDetails, Money, NetworkStatus, ToastHost, useApp } from '../ui/kit';
+import { Check, Dot, Icon, ItemDetails, Money, NetworkStatus, PaidTabActions, ToastHost, useApp } from '../ui/kit';
 import { SplitDnd, useDragging } from '../ui/dnd';
 import { useTabHelpers } from '../ui/overlays';
 
@@ -81,7 +81,7 @@ function Column({ t }: { t: TabView }) {
           <div className="kv"><span className="muted">Subtotal</span><Money c={t.b.sub} /></div>
           <div className="kv"><span className="muted">Sales tax</span><Money c={t.b.tax} /></div>
         </div>
-        {t.paid ? <div className="paid-bar"><Icon n="ok" s={18} />Paid {fmt(t.b.total)}</div>
+        {t.paid ? <div className="tab-checkout"><PaidTabActions t={t} /></div>
           : <div className="tab-checkout">
             <button className="btn pri checkout" disabled={!n} onClick={() => open({ kind: 'pay', tabId: t.tab.id })}>
               <span className="row-flex"><Icon n="card" s={18} />Pay</span><Money c={t.b.total} /></button>

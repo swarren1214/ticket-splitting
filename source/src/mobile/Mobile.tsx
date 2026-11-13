@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { fmt, fmtSigned, type LineView, type TabView } from '../store';
-import { Check, Dot, Icon, ItemDetails, Money, NetworkStatus, ToastHost, useApp } from '../ui/kit';
+import { Check, Dot, Icon, ItemDetails, Money, NetworkStatus, PaidTabActions, ToastHost, useApp } from '../ui/kit';
 import { SplitDnd, useDragging } from '../ui/dnd';
 import { useTabHelpers } from '../ui/overlays';
 import { Banner } from '../countertop/Countertop';
@@ -153,8 +153,8 @@ function TabCard({ t }: { t: TabView }) {
         <div className="kv"><span className="muted">Sales tax</span><Money c={t.b.tax} /></div>
         <div className="kv big"><span>Total</span><Money c={t.b.total} /></div>
       </div>
-      <div className={'m-card-checkout' + (t.paid ? '' : ' tab-checkout')}>
-        {t.paid ? <div className="paid-bar m"><Icon n="ok" s={20} />{t.tab.name} paid · {fmt(t.b.total)}</div>
+      <div className="m-card-checkout tab-checkout">
+        {t.paid ? <PaidTabActions t={t} mobile />
           : <>
             {!s.selected.length && <button className="btn pri checkout m" disabled={!n} onClick={() => open({ kind: 'pay', tabId: t.tab.id })}>
               <span className="row-flex"><Icon n="card" />Pay {t.tab.name}</span><Money c={t.b.total} /></button>}

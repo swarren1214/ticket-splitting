@@ -133,6 +133,28 @@ function VoidOrder() {
   );
 }
 
+function VoidPayment({ tabId }: { tabId: string }) {
+  const { v, d, close } = useApp();
+  const t = v.tabs.find(t => t.tab.id === tabId);
+  const payment = t?.tab.paid;
+  if (!t || !payment) return (
+    <Dialog title="Payment unavailable" icon="alert" tone="red" onClose={close}
+      actions={<button className="btn grow" onClick={close}>Close</button>}>
+      <p className="dlg-p">This tab no longer has a payment to void.</p>
+    </Dialog>
+  );
+  return (
+    <Dialog title={`Void payment for ${t.tab.name}?`} icon="ban" tone="red" onClose={close} width={480}
+      actions={<><button className="btn" onClick={close}>Cancel</button><button className="btn danf grow"
+        onClick={() => { d({ type: 'VOID_PAYMENT', tabId }); close(); }}>Void payment</button></>}>
+      <p className="dlg-p">Void the <b>{fmt(payment.breakdown.total)} {payment.method.toLowerCase()}</b> payment?
+        {' '}{t.tab.name} will reopen with its recorded items and item prices. Other paid tabs stay locked.</p>
+      <p className="muted small">Ticket adjustments and tax are recalculated across unpaid tabs. This can’t be undone.</p>
+      <p className="muted small">Prototype: no real payment is reversed.</p>
+    </Dialog>
+  );
+}
+
 // ---------------- panels ----------------
 function TabPills({ ids, toggle, includeNew = true, newOn, toggleNew }: { ids: string[]; toggle: (id: string) => void; includeNew?: boolean; newOn?: boolean; toggleNew?: () => void }) {
   const { open } = useTabHelpers();
@@ -255,10 +277,12 @@ function EvenSplit() {
 }
 
 function Discount({ itemIds }: { itemIds: string[] }) {
-  const { s, d, close } = useApp();
-  const cur = s.core.items[itemIds[0]].discountPct ?? 0;
+  const { s, v, d, close } = useApp();
+  const selected = v.tabs.flatMap(t => t.lines).filter(l => s.selected.includes(l.id));
+  const items = itemIds.map(id => selected.find(l => l.itemId === id)?.item ?? s.core.items[id]);
+  const cur = items[0].discountPct ?? 0;
   const [pct, setPct] = useState(cur || 10);
-  const names = itemIds.map(i => s.core.items[i].name).join(', ');
+  const names = items.map(i => i.name).join(', ');
   return (
     <Panel title="Discount items" sub={names} onClose={close} height={430}
       footer={<>{cur ? <button className="btn dan" onClick={() => { d({ type: 'DISCOUNT_ITEMS', itemIds, pct: 0 }); close(); }}>Remove</button> : <button className="btn grow" onClick={close}>Cancel</button>}
@@ -522,6 +546,7 @@ export function OverlayHost() {
             {o.kind === 'void' && <VoidItems itemIds={o.itemIds} />}
             {o.kind === 'voidOrder' && <VoidOrder />}
             {o.kind === 'pay' && <Pay tabId={o.tabId} />}
+            {o.kind === 'voidPayment' && <VoidPayment tabId={o.tabId} />}
             {o.kind === 'customer' && <Customer />}
             {o.kind === 'info' && <Info />}
             {o.kind === 'adjust' && <Adjust />}

@@ -90,10 +90,12 @@ The button also requests browser full screen where supported. If the browser doe
 - Network status stays visible in the countertop top bar and in a mobile strip above the app header (below the device's native status bar). A Lucide Network icon uses green for Online and red for Offline, following browser connectivity; it does not verify POS/server availability.
 - Ticket actions stay in one drawer: customer, ticket info, adjustments, even split and confirmations are subpages. Back (or Escape) returns to the menu; Close dismisses the drawer.
 - Undoable: moves, item splits, add/remove tab, even split, split by seat, cancel splits, item discounts, voids, ticket adjustment toggles.
-- Not undoable (history clears): payments and move-to-new-ticket. Both confirm first or are explicit.
+- Not undoable (history clears): payments, voiding payments, and move-to-new-ticket. Each confirms first or is explicit.
 - Remove tab: empty → instant with Undo; one other tab → confirm; 2+ → pick destination (previous tab preselected).
 - Move to new ticket: confirm, stay on screen, banner links to the new order; optional "open after moving".
 - Paid tabs lock; re-splitting (by seat / evenly / cancel) is disabled once any tab is paid.
+- Paid tabs have a circular **Void payment** icon button beside the paid status at the bottom, across all layouts. Confirmation shows the payment amount and method; Cancel leaves the payment untouched. Confirming reopens that tab, restores its recorded item details and item prices (even if other shares were later discounted or voided), and clears Undo/Redo history. Other paid tabs remain locked. Ticket adjustments and tax rebalance across unpaid tabs. This is a prototype-only reversal, not a real refund.
+- Reopened shares retain their recorded cents when moved or split. Shares with separate recorded pricing stay separate when combined on a tab, so their original prices are not overwritten. New item discounts and voids still apply to all unpaid shares.
 - Paying a tab snapshots its item details, prices, adjustments and tax. Later discounts and voids affect only unpaid shares. Repeated payment events do not change totals.
 - Checkout spins the loader only while processing; the success checkmark uses a single gentle scale pulse, without rotation.
 - Dialogs and panels contain keyboard focus and restore it on close. Opening a drawer and navigating its subpages do not scroll the underlying device screen. Global undo/redo shortcuts are suspended while an overlay is open.

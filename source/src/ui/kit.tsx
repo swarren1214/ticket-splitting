@@ -6,14 +6,15 @@ import {
   LoaderCircle, Lock, Maximize, Merge, Minimize, Minus, Network, Percent, Plus, Printer, Redo2, Send, Split, Tag, Trash2,
   TriangleAlert, Undo2, UserRound, UsersRound, X,
 } from 'lucide-react';
-import type { Action, LineView, State } from '../store';
-import { derive } from '../store';
+import type { Action, LineView, State, TabView } from '../store';
+import { derive, fmt } from '../store';
 
 // ---------- app context ----------
 export type Overlay =
   | { kind: 'remove'; tabId: string } | { kind: 'newTicket'; tabId: string } | { kind: 'cancel' } | { kind: 'even' }
   | { kind: 'split'; lineIds: string[] } | { kind: 'discount'; itemIds: string[] } | { kind: 'void'; itemIds: string[] }
-  | { kind: 'pay'; tabId: string } | { kind: 'customer' } | { kind: 'info' } | { kind: 'adjust' } | { kind: 'voidOrder' }
+  | { kind: 'pay'; tabId: string } | { kind: 'voidPayment'; tabId: string }
+  | { kind: 'customer' } | { kind: 'info' } | { kind: 'adjust' } | { kind: 'voidOrder' }
   | { kind: 'ticketMenu' } | { kind: 'tabMenu'; tabId: string; anchor?: DOMRect } | { kind: 'viewTicket'; number: number };
 export type Device = 'counter' | 'mobile';
 export interface Ctx {
@@ -60,6 +61,19 @@ export function ItemDetails({ line }: { line: LineView }) {
         <span className="row-description" title={description}>{description}</span>
       </div>
     </div>
+  );
+}
+
+export function PaidTabActions({ t, mobile = false }: { t: TabView; mobile?: boolean }) {
+  const { open } = useApp();
+  return (
+    <>
+      <div className={'paid-bar' + (mobile ? ' m' : '')}>
+        <Icon n="ok" s={mobile ? 20 : 18} />{mobile ? `${t.tab.name} paid · ${fmt(t.b.total)}` : `Paid ${fmt(t.b.total)}`}
+      </div>
+      <button className="ib tab-menu-button void-payment" aria-label={`Void payment for ${t.tab.name}`} title="Void payment"
+        onClick={() => open({ kind: 'voidPayment', tabId: t.tab.id })}><Icon n="ban" /></button>
+    </>
   );
 }
 
