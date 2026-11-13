@@ -158,8 +158,9 @@ button:disabled { cursor: default; }
 .ib.tab-menu-button { width: 52px; height: 52px; border-radius: 50%; }
 .paid-bar { margin: 10px 14px 14px; height: 52px; border-radius: 12px; background: #E8F6EE; color: #0E5A30; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .paid-bar.m { margin: 0; height: 56px; }
-.tab-checkout .paid-bar { flex: 1; min-width: 0; margin: 0; padding: 0 10px; text-align: center; }
-.ib.void-payment { color: var(--red-t); border-color: #F0B8B8; }
+.paid-tab-actions { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.tab-checkout .paid-bar { min-width: 0; margin: 0; padding: 0 10px; text-align: center; }
+.btn.void-payment { width: 100%; height: 52px; }
 .newzone { width: 220px; flex: none; border: 2px dashed #CDD3DB; border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 20px; text-align: center; transition: background .2s, border-color .2s; }
 .newzone.target { border-color: var(--blue); background: #F3F5FF; }
 .newzone.over { background: #E6EAFF; border-style: solid; }
@@ -336,6 +337,7 @@ button:disabled { cursor: default; }
 .m-bottom-wrap { flex: none; position: relative; }
 .m-card-checkout { padding: 0 12px 12px; }
 .m-card-checkout .tab-menu-button { width: 56px; height: 56px; }
+.m-card-checkout .void-payment { height: 56px; }
 .m-ticket-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) 56px; gap: 8px; padding: 12px; background: #fff; border-top: 1px solid #E5E8EC; }
 .m-ticket-actions > .btn:not(.m-send) { padding: 0 8px; font-size: 14px; height: 56px; }
 .m-send { width: 56px; height: 56px; padding: 0; }

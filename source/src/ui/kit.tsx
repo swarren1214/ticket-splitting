@@ -67,13 +67,13 @@ export function ItemDetails({ line }: { line: LineView }) {
 export function PaidTabActions({ t, mobile = false }: { t: TabView; mobile?: boolean }) {
   const { open } = useApp();
   return (
-    <>
+    <div className="paid-tab-actions">
       <div className={'paid-bar' + (mobile ? ' m' : '')}>
         <Icon n="ok" s={mobile ? 20 : 18} />{mobile ? `${t.tab.name} paid · ${fmt(t.b.total)}` : `Paid ${fmt(t.b.total)}`}
       </div>
-      <button className="ib tab-menu-button void-payment" aria-label={`Void payment for ${t.tab.name}`} title="Void payment"
-        onClick={() => open({ kind: 'voidPayment', tabId: t.tab.id })}><Icon n="ban" /></button>
-    </>
+      <button className="btn dan void-payment" aria-label={`Void payment for ${t.tab.name}`}
+        onClick={() => open({ kind: 'voidPayment', tabId: t.tab.id })}><Icon n="ban" />Void payment</button>
+    </div>
   );
 }
 
