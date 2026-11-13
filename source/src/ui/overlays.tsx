@@ -422,12 +422,13 @@ function TabMenu({ tabId, anchor }: { tabId: string; anchor?: DOMRect }) {
   // countertop popover, positioned relative to the scaled device frame
   const fr = frameRef.current!.getBoundingClientRect();
   const left = anchor ? Math.max(8, Math.min((anchor.left - fr.left) / scale - 8, frameRef.current!.clientWidth - 316)) : 8;
-  const top = anchor ? (anchor.bottom - fr.top) / scale + 6 : 0;
+  const bottom = anchor ? (fr.bottom - anchor.top) / scale + 6 : 8;
+  const maxHeight = anchor ? (anchor.top - fr.top) / scale - 14 : frameRef.current!.clientHeight - 16;
   return (
     <div className="layer">
       <div className="click-away" onClick={close} />
-      <motion.div tabIndex={-1} role="menu" aria-label={`${t.tab.name} actions`} className="popover" style={{ left, top }}
-        initial={{ opacity: 0, scale: 0.95, y: -6 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }}
+      <motion.div tabIndex={-1} role="menu" aria-label={`${t.tab.name} actions`} className="popover" style={{ left, bottom, maxHeight, overflowY: 'auto', transformOrigin: 'bottom left' }}
+        initial={{ opacity: 0, scale: 0.95, y: 6 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }}
         transition={{ type: 'spring', stiffness: 500, damping: 34 }}>{body}</motion.div>
     </div>
   );

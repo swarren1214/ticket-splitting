@@ -130,7 +130,6 @@ function TabCard({ t }: { t: TabView }) {
           <div className="m-card-name">{t.tab.name}</div>
           <div className="col-meta">{t.paid ? <span className="paid-txt">Paid · {t.tab.paid!.method}</span> : mine.length ? <span className="sel-txt">{mine.length} of {n} selected</span> : `${n} item${n === 1 ? '' : 's'}`}</div>
         </div>
-        {!t.paid && <button className="ib gh" aria-label={`${t.tab.name} actions`} onClick={() => open({ kind: 'tabMenu', tabId: t.tab.id })}><Icon n="more" s={22} /></button>}
       </div>
       <AnimatePresence initial={false} mode="popLayout">
         {t.lines.map(l => <MRow key={l.id} l={l} paid={t.paid} />)}
@@ -157,13 +156,14 @@ function TabCard({ t }: { t: TabView }) {
         <div className="kv"><span className="muted">Sales tax</span><Money c={t.b.tax} /></div>
         <div className="kv big"><span>Total</span><Money c={t.b.total} /></div>
       </div>
-      {(t.paid || !s.selected.length) && (
-        <div className="m-card-checkout">
-          {t.paid ? <div className="paid-bar m"><Icon n="ok" s={20} />{t.tab.name} paid · {fmt(t.b.total)}</div>
-            : <button className="btn pri checkout m" disabled={!n} onClick={() => open({ kind: 'pay', tabId: t.tab.id })}>
+      <div className={'m-card-checkout' + (t.paid ? '' : ' tab-checkout')}>
+        {t.paid ? <div className="paid-bar m"><Icon n="ok" s={20} />{t.tab.name} paid · {fmt(t.b.total)}</div>
+          : <>
+            {!s.selected.length && <button className="btn pri checkout m" disabled={!n} onClick={() => open({ kind: 'pay', tabId: t.tab.id })}>
               <span className="row-flex"><Icon n="card" />Checkout {t.tab.name}</span><Money c={t.b.total} /></button>}
-        </div>
-      )}
+            <button className="ib tab-menu-button" aria-label={`${t.tab.name} actions`} onClick={() => open({ kind: 'tabMenu', tabId: t.tab.id })}><Icon n="more" s={22} /></button>
+          </>}
+      </div>
     </section>
   );
 }

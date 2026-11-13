@@ -58,7 +58,6 @@ function Column({ t }: { t: TabView }) {
             : mine.length ? <span className="sel-txt">{mine.length} of {n} selected</span> : `${n} item${n === 1 ? '' : 's'}`}</div>
         </div>
         <Money c={t.b.total} className="col-total" />
-        {!t.paid && <button ref={moreRef} className="ib gh" aria-label={`${t.tab.name} actions`} onClick={() => open({ kind: 'tabMenu', tabId: t.tab.id, anchor: moreRef.current!.getBoundingClientRect() })}><Icon n="more" /></button>}
       </div>
       <AnimatePresence initial={false}>
         {isTarget && !drag && (
@@ -86,8 +85,11 @@ function Column({ t }: { t: TabView }) {
           <div className="kv"><span className="muted">Sales tax</span><Money c={t.b.tax} /></div>
         </div>
         {t.paid ? <div className="paid-bar"><Icon n="ok" s={18} />Paid {fmt(t.b.total)}</div>
-          : <button className="btn pri checkout" disabled={!n} onClick={() => open({ kind: 'pay', tabId: t.tab.id })}>
-            <span className="row-flex"><Icon n="card" s={18} />Checkout</span><Money c={t.b.total} /></button>}
+          : <div className="tab-checkout">
+            <button className="btn pri checkout" disabled={!n} onClick={() => open({ kind: 'pay', tabId: t.tab.id })}>
+              <span className="row-flex"><Icon n="card" s={18} />Checkout</span><Money c={t.b.total} /></button>
+            <button ref={moreRef} className="ib tab-menu-button" aria-label={`${t.tab.name} actions`} onClick={() => open({ kind: 'tabMenu', tabId: t.tab.id, anchor: moreRef.current!.getBoundingClientRect() })}><Icon n="more" /></button>
+          </div>}
       </div>
     </motion.section>
   );
