@@ -86,7 +86,7 @@ function TicketActions() {
     <div className="m-ticket-actions" role="group" aria-label="Ticket actions">
       <button className="btn" disabled={anyPaid} onClick={() => open({ kind: 'even' })}><Icon n="even" s={18} />Even Split</button>
       <button className="btn" disabled={anyPaid} onClick={() => d({ type: 'BY_SEAT' })}><Icon n="seat" s={18} />By Seat</button>
-      <button className="btn pri m-send" aria-label="Send" title="Send" onClick={() => d({ type: 'SEND' })}><Icon n="arrowUp" s={24} /></button>
+      <button className="btn pri m-send" aria-label="Send" title="Send" onClick={() => d({ type: 'SEND' })}><Icon n="send" s={24} /></button>
     </div>
   );
 }

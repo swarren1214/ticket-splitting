@@ -172,7 +172,7 @@ function BottomBar() {
               <span>{v.tabs.length} tab{v.tabs.length === 1 ? '' : 's'} · Ticket total <b><Money c={v.ticket.total} /></b></span>
               {paid > 0 && <span className="muted small">Paid {fmt(paid)} · Remaining {fmt(v.ticket.total - paid)}</span>}
             </div>
-            <button className="btn pri send" onClick={() => d({ type: 'SEND' })}><Icon n="arrowUp" s={18} />Send</button>
+            <button className="btn pri send" onClick={() => d({ type: 'SEND' })}><Icon n="send" s={18} />Send</button>
           </motion.footer>
         )}
       </AnimatePresence>
