@@ -217,7 +217,7 @@ function Bottom() {
             </div>
             <div className="hr" />
             <div className="acts">
-              <button className="act" disabled={sel.length !== 1} onClick={() => open({ kind: 'split', lineId: sel[0] })}><Icon n="split" />Split</button>
+              <button className="act" onClick={() => open({ kind: 'split', lineIds: sel })}><Icon n="split" />Split</button>
               <button className="act" onClick={() => open({ kind: 'discount', itemIds })}><Icon n="tag" />Discount</button>
               <button className="act red" onClick={() => open({ kind: 'void', itemIds })}><Icon n="ban" />Void</button>
             </div>

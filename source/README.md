@@ -73,8 +73,10 @@ The button also requests browser full screen where supported. If the browser doe
 ## Behaviour rules implemented
 
 - Select items → every other tab (and "new tab") becomes a tap target. Drag also works.
+- Split one or multiple selected item rows using the same destination tabs and even or custom shares. Each selected portion is split independently; unselected and paid shares are left alone. Selecting New tab creates one shared destination for the whole batch. The operation has one Undo/Redo step. The split panel lists selected items and source tabs; allocation previews are estimates before ticket adjustments and tax, with final cents balanced per item.
 - Item rows show the ordered quantity on the detail line (for example, `Qty 1 · Small`). Split badges and share descriptions use percentages, rounded to at most one decimal place (`50%`, `33.3%`); calculations still use exact fractions. A whole item has no share badge. Quantity is the original ordered count, not the fractional count allocated to the tab, and stays consistent in paid and moved-ticket snapshots. Seed quantities are one; item prices remain the full ordered line totals.
 - Countertop/iPad tab headers use matching 14px left and right padding.
+- Countertop/iPad footer actions, including item-selection actions, use the same 52px height as Send and Pay; widths follow their labels.
 - Countertop/iPad: moved items appear immediately in their destination, without a shared cross-column animation that can hide them inside scrollable columns.
 - Touch screens (including iPads): long-press an item, then drag it to another tab. Scrolling is blocked during the drag; a quick swipe without holding still scrolls normally.
 - Tabs are always named Tab 1, Tab 2, etc., including seat-based splits. Removing a tab or moving it to another ticket renumbers survivors without changing their identities, colors or payments; new tabs continue the current sequence. Undo and redo restore the corresponding numbering.

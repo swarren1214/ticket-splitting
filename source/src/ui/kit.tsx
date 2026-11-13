@@ -12,7 +12,7 @@ import { derive } from '../store';
 // ---------- app context ----------
 export type Overlay =
   | { kind: 'remove'; tabId: string } | { kind: 'newTicket'; tabId: string } | { kind: 'cancel' } | { kind: 'even' }
-  | { kind: 'split'; lineId: string } | { kind: 'discount'; itemIds: string[] } | { kind: 'void'; itemIds: string[] }
+  | { kind: 'split'; lineIds: string[] } | { kind: 'discount'; itemIds: string[] } | { kind: 'void'; itemIds: string[] }
   | { kind: 'pay'; tabId: string } | { kind: 'customer' } | { kind: 'info' } | { kind: 'adjust' } | { kind: 'voidOrder' }
   | { kind: 'ticketMenu' } | { kind: 'tabMenu'; tabId: string; anchor?: DOMRect } | { kind: 'viewTicket'; number: number };
 export type Device = 'counter' | 'mobile';

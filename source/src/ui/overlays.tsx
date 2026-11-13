@@ -140,37 +140,52 @@ function TabPills({ ids, toggle, includeNew = true, newOn, toggleNew }: { ids: s
     <div className="chips">
       {open.map(t => {
         const on = ids.includes(t.tab.id);
-        return <motion.button layout key={t.tab.id} className={'pill' + (on ? ' on' : '')} aria-pressed={on} onClick={() => toggle(t.tab.id)}>
-          <Dot c={t.tab.color} />{t.tab.name}{on && <Icon n="check" s={16} w={3} />}</motion.button>;
+        return <button key={t.tab.id} className={'pill' + (on ? ' on' : '')} aria-pressed={on} onClick={() => toggle(t.tab.id)}>
+          <Dot c={t.tab.color} />{t.tab.name}{on && <Icon n="check" s={16} w={3} />}</button>;
       })}
-      {includeNew && <motion.button layout className={'pill' + (newOn ? ' on' : ' accent')} aria-pressed={!!newOn} onClick={toggleNew}><Icon n="plus" s={16} />New tab{newOn && <Icon n="check" s={16} w={3} />}</motion.button>}
+      {includeNew && <button className={'pill' + (newOn ? ' on' : ' accent')} aria-pressed={!!newOn} onClick={toggleNew}><Icon n="plus" s={16} />New tab{newOn && <Icon n="check" s={16} w={3} />}</button>}
     </div>
   );
 }
 
-function SplitItem({ lineId }: { lineId: string }) {
+function SplitItems({ lineIds }: { lineIds: string[] }) {
   const { v, d, close, device } = useApp();
   const { open } = useTabHelpers();
-  const line = v.tabs.flatMap(t => t.lines).find(l => l.id === lineId)!;
-  const src = line.tabId;
-  const nextOpen = open.find(t => t.tab.id !== src)?.tab.id;
-  const [ids, setIds] = useState<string[]>(nextOpen ? [src, nextOpen] : [src]);
-  const [withNew, setWithNew] = useState(!nextOpen);
+  const lines = open.flatMap(t => t.lines).filter(l => lineIds.includes(l.id));
+  const first = lines[0];
+  const sources = [...new Set(lines.map(l => l.tabId))];
+  const nextOpen = open.find(t => !sources.includes(t.tab.id))?.tab.id;
+  const [ids, setIds] = useState<string[]>(sources.length > 1 || !nextOpen ? sources : [...sources, nextOpen]);
+  const [withNew, setWithNew] = useState(sources.length < 2 && !nextOpen);
   const [mode, setMode] = useState<'even' | 'custom'>('even');
   const [shares, setShares] = useState<Record<string, number>>({});
   const targets = [...ids, ...(withNew ? ['new'] : [])];
   const sh = targets.map(t => (mode === 'even' ? 1 : shares[t] ?? 1));
   const S = sh.reduce((a, b) => a + b, 0);
-  const amounts = allocate(line.amount, sh);
+  const amounts = targets.map(() => 0);
+  lines.forEach(l => allocate(l.amount, sh).forEach((amount, k) => { amounts[k] += amount; }));
+  const total = lines.reduce((sum, l) => sum + l.amount, 0);
   const colorOf = (id: string) => (id === 'new' ? '#8D95A1' : v.tabs.find(t => t.tab.id === id)!.tab.color);
   const nameOf = (id: string) => (id === 'new' ? 'New tab' : v.tabs.find(t => t.tab.id === id)!.tab.name);
   const toggle = (id: string) => setIds(x => (x.includes(id) ? x.filter(i => i !== id) : [...x, id]));
-  const ok = targets.length >= 2;
+  const unavailable = !lines.length || lines.length !== new Set(lineIds).size;
+  const ok = !unavailable && targets.length >= 2;
   return (
-    <Panel title={device === 'counter' ? 'Split item' : `Split ${line.item.name}`} onClose={close} height={device === 'mobile' ? 600 : undefined}
-      sub={<>{line.item.name} · {fmt(line.amount)}{line.share ? ` (${line.share} share)` : ''} · on {v.tabs.find(t => t.tab.id === src)!.tab.name}</>}
-      footer={<><button className="btn grow" onClick={close}>Cancel</button><button className="btn pri grow2" disabled={!ok} onClick={() => { d({ type: 'SPLIT_ITEM', lineId, tabIds: targets, shares: sh }); close(); }}>
+    <Panel title={lines.length === 1 && first ? (device === 'counter' ? 'Split item' : `Split ${first.item.name}`) : `Split ${plural(lines.length, 'item')}`} onClose={close} height={device === 'mobile' ? 600 : undefined}
+      sub={lines.length === 1 && first
+        ? <>{first.item.name} · {fmt(first.amount)}{first.share ? ` (${first.share} share)` : ''} · on {nameOf(first.tabId)}</>
+        : <>{plural(lines.length, 'item')} · {fmt(total)} · {sources.length === 1 ? `on ${nameOf(sources[0])}` : `across ${plural(sources.length, 'tab')}`}</>}
+      footer={<><button className="btn grow" onClick={close}>Cancel</button><button className="btn pri grow2" disabled={!ok} onClick={() => { d({ type: 'SPLIT_ITEMS', lineIds, tabIds: targets, shares: sh }); close(); }}>
         {ok ? `Split between ${targets.length} tabs` : 'Pick at least 2 tabs'}</button></>}>
+      {unavailable && <div className="warn" role="alert"><Icon n="alert" s={16} />Some selected items are no longer available. Close and select unpaid items again.</div>}
+      {lines.length > 1 && <>
+        <div className="nt-list">{lines.map(l => <div key={l.id} className="kv nt-row">
+          <span><b>{l.item.name}</b> {l.share && <span className="share-badge">{l.share}</span>}
+            <span className="muted small" style={{ display: 'block' }}>Qty {l.item.quantity} · on {nameOf(l.tabId)}</span></span>
+          <Money c={l.amount} />
+        </div>)}</div>
+        <p className="muted small">The same portions apply to every selected share. Unselected and paid shares stay unchanged.</p>
+      </>}
       <div className="lbl">Split between</div>
       <TabPills ids={ids} toggle={toggle} newOn={withNew} toggleNew={() => setWithNew(!withNew)} />
       <div className="lbl" style={{ marginTop: 18 }}>Portions</div>
@@ -179,29 +194,27 @@ function SplitItem({ lineId }: { lineId: string }) {
         <button role="tab" aria-selected={mode === 'custom'} className={mode === 'custom' ? 'on' : ''} onClick={() => setMode('custom')}>Custom shares</button>
       </div>
       <div className="alloc-bar">
-        {targets.map((t, k) => <motion.div key={t} layout style={{ flexGrow: sh[k], background: colorOf(t) }} transition={{ type: 'spring', stiffness: 400, damping: 34 }} />)}
+        {targets.map((t, k) => <div key={t} style={{ flexGrow: sh[k], background: colorOf(t) }} />)}
       </div>
       <div className="share-rows">
-        <AnimatePresence initial={false}>
-          {targets.map((t, k) => {
-            const [n, dd] = reduce(sh[k], S);
-            return (
-              <motion.div key={t} className="share-row" layout initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-                <Dot c={colorOf(t)} />
-                <div style={{ flex: 1 }}><div className="opt-t">{nameOf(t)} <span className="share-badge">{shareLabel(n, dd) || '100%'}</span></div><div className="muted opt-s"><Money c={amounts[k]} /></div></div>
-                {mode === 'custom' && (
-                  <div className="stepper sm">
-                    <button className="ib gh" aria-label={`Fewer shares for ${nameOf(t)}`} disabled={sh[k] <= 1} onClick={() => setShares({ ...shares, [t]: sh[k] - 1 })}><Icon n="minus" s={18} /></button>
-                    <span>{sh[k]}</span>
-                    <button className="ib gh" aria-label={`More shares for ${nameOf(t)}`} disabled={sh[k] >= 9} onClick={() => setShares({ ...shares, [t]: sh[k] + 1 })}><Icon n="plus" s={18} /></button>
-                  </div>
-                )}
-              </motion.div>
-            );
-          })}
-        </AnimatePresence>
+        {targets.map((t, k) => {
+          const [n, dd] = reduce(sh[k], S);
+          return (
+            <div key={t} className="share-row">
+              <Dot c={colorOf(t)} />
+              <div style={{ flex: 1 }}><div className="opt-t">{nameOf(t)} <span className="share-badge">{shareLabel(n, dd) || '100%'}</span></div><div className="muted opt-s">{fmt(amounts[k])}</div></div>
+              {mode === 'custom' && (
+                <div className="stepper sm">
+                  <button className="ib gh" aria-label={`Fewer shares for ${nameOf(t)}`} disabled={sh[k] <= 1} onClick={() => setShares({ ...shares, [t]: sh[k] - 1 })}><Icon n="minus" s={18} /></button>
+                  <span>{sh[k]}</span>
+                  <button className="ib gh" aria-label={`More shares for ${nameOf(t)}`} disabled={sh[k] >= 9} onClick={() => setShares({ ...shares, [t]: sh[k] + 1 })}><Icon n="plus" s={18} /></button>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
-      <p className="muted small" style={{ marginTop: 12 }}>Odd cents go to the first tab. Item discounts carry over proportionally.</p>
+      <p className="muted small" style={{ marginTop: 12 }}>Preview amounts are estimates before ticket adjustments and tax; final cents are balanced per item. Item discounts carry over proportionally.</p>
     </Panel>
   );
 }
@@ -504,7 +517,7 @@ export function OverlayHost() {
             {o.kind === 'newTicket' && <NewTicket tabId={o.tabId} />}
             {o.kind === 'cancel' && <CancelSplits />}
             {o.kind === 'even' && <EvenSplit />}
-            {o.kind === 'split' && <SplitItem lineId={o.lineId} />}
+            {o.kind === 'split' && <SplitItems lineIds={o.lineIds} />}
             {o.kind === 'discount' && <Discount itemIds={o.itemIds} />}
             {o.kind === 'void' && <VoidItems itemIds={o.itemIds} />}
             {o.kind === 'voidOrder' && <VoidOrder />}

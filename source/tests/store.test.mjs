@@ -32,7 +32,7 @@ test('thirds retain ordered quantities and exact amounts through payment and tic
   initial.core.items.nuggets.quantity = 3;
   initial.core.items.nuggets.price = 2400;
   const before = derive(initial.core);
-  const split = reducer(initial, { type: 'SPLIT_ITEM', lineId: 'l2', tabIds: ['t1', 't2', 't3'], shares: [1, 1, 1] });
+  const split = reducer(initial, { type: 'SPLIT_ITEMS', lineIds: ['l2'], tabIds: ['t1', 't2', 't3'], shares: [1, 1, 1] });
   const view = derive(split.core);
   const lines = view.tabs.flatMap(t => t.lines).filter(l => l.itemId === 'nuggets');
   assert.deepEqual(lines.map(l => [l.item.quantity, l.num, l.den, l.share, l.amount]),
@@ -45,6 +45,86 @@ test('thirds retain ordered quantities and exact amounts through payment and tic
   const movedLine = moved.newTickets[0].lines.find(l => l.name === 'Chicken Nuggets');
   assert.deepEqual([movedLine.quantity, movedLine.share, movedLine.amount], [3, '33.3%', 800]);
   assert.equal(derive(moved.core).ticket.total + moved.newTickets[0].breakdown.total, before.ticket.total);
+});
+
+test('batch even splits preserve unselected rows and undo or redo the entire batch together', () => {
+  let initial = initState();
+  for (const lineId of ['l2', 'l3']) initial = reducer(initial, { type: 'SELECT', lineId });
+  const split = reducer(initial, { type: 'SPLIT_ITEMS', lineIds: initial.selected, tabIds: ['t1', 't2'], shares: [1, 1] });
+  for (const itemId of ['nuggets', 'wings']) {
+    assert.deepEqual(split.core.lines.filter(l => l.itemId === itemId).map(l => [l.tabId, l.num, l.den]),
+      [['t1', 1, 2], ['t2', 1, 2]]);
+  }
+  assert.deepEqual(split.core.lines.filter(l => !['nuggets', 'wings'].includes(l.itemId)),
+    initial.core.lines.filter(l => !['nuggets', 'wings'].includes(l.itemId)));
+  assert.deepEqual(derive(split.core).ticket, derive(initial.core).ticket);
+  assert.deepEqual(split.selected, []);
+  assert.equal(split.past.length, initial.past.length + 1);
+  const undone = reducer(split, { type: 'UNDO' });
+  assert.deepEqual(undone.core, initial.core);
+  assert.deepEqual(reducer(undone, { type: 'REDO' }).core, split.core);
+});
+
+test('custom batch splits only selected portions and creates one new destination for all items', () => {
+  const initial = initState();
+  const before = structuredClone(initial);
+  const split = reducer(initial, { type: 'SPLIT_ITEMS', lineIds: ['l1', 'l2'], tabIds: ['t3', 'new'], shares: [1, 2] });
+  assert.deepEqual(initial, before);
+  assert.equal(split.core.tabs.length, initial.core.tabs.length + 1);
+  const dest = split.core.tabs.at(-1).id;
+  assert.deepEqual(split.core.lines.filter(l => l.itemId === 'burger').map(l => [l.tabId, l.num, l.den]),
+    [['t2', 1, 2], ['t3', 1, 6], [dest, 1, 3]]);
+  assert.deepEqual(split.core.lines.filter(l => l.itemId === 'nuggets').map(l => [l.tabId, l.num, l.den]),
+    [['t3', 1, 3], [dest, 2, 3]]);
+  assert.deepEqual(derive(split.core).ticket, derive(initial.core).ticket);
+  assert.equal(new Set(split.core.lines.map(l => l.id)).size, split.core.lines.length);
+  assert.deepEqual(new Set(split.flash), new Set(['burger@t3', 'nuggets@t3', `burger@${dest}`, `nuggets@${dest}`]));
+});
+
+test('batch selections across tabs combine shares of the same item without double-splitting duplicates', () => {
+  const initial = initState();
+  const split = reducer(initial, { type: 'SPLIT_ITEMS', lineIds: ['l1', 'l4', 'l1', 'l2'], tabIds: ['t1', 't3'], shares: [1, 1] });
+  for (const itemId of ['burger', 'nuggets']) {
+    assert.deepEqual(split.core.lines.filter(l => l.itemId === itemId).map(l => [l.tabId, l.num, l.den]),
+      [['t1', 1, 2], ['t3', 1, 2]]);
+  }
+  assert.equal(derive(split.core).tabs.flatMap(t => t.lines).filter(l => l.itemId === 'burger')
+    .reduce((sum, l) => sum + l.amount, 0), initial.core.items.burger.price);
+  assert.deepEqual(derive(split.core).ticket, derive(initial.core).ticket);
+});
+
+test('batch splitting discounted odd-cent items leaves paid snapshots and total money unchanged', () => {
+  const initial = initState();
+  initial.core.items.nuggets.price = 801;
+  const discounted = reducer(initial, { type: 'DISCOUNT_ITEMS', itemIds: ['burger', 'nuggets'], pct: 25 });
+  const paid = reducer(discounted, { type: 'PAY', tabId: 't2', method: 'Card' });
+  const before = derive(paid.core);
+  const snapshot = paid.core.tabs[1].paid;
+  const split = reducer(paid, { type: 'SPLIT_ITEMS', lineIds: ['l1', 'l2'], tabIds: ['t1', 'new'], shares: [1, 2] });
+  const after = derive(split.core);
+  assert.deepEqual(split.core.tabs[1].paid, snapshot);
+  assert.deepEqual(after.tabs[1].b, before.tabs[1].b);
+  assert.deepEqual(after.tabs[1].lines.map(l => [l.item, l.amount, l.share]),
+    before.tabs[1].lines.map(l => [l.item, l.amount, l.share]));
+  assert.deepEqual(after.ticket, before.ticket);
+  assert.equal(after.tabs.flatMap(t => t.lines).filter(l => l.itemId === 'nuggets').reduce((sum, l) => sum + l.amount, 0), 601);
+  assert.ok(after.tabs.flatMap(t => t.lines).every(l => Number.isInteger(l.amount) && l.amount >= 0));
+});
+
+test('invalid batch split requests report an error without partially changing the order', () => {
+  const paid = reducer(initState(), { type: 'PAY', tabId: 't2', method: 'Cash' });
+  const valid = { type: 'SPLIT_ITEMS', lineIds: ['l1', 'l2'], tabIds: ['t1', 'new'], shares: [1, 1] };
+  for (const override of [
+    { lineIds: [] }, { lineIds: ['l1', 'missing'] }, { lineIds: ['l1', 'l4'] },
+    { tabIds: ['t2', 'new'] }, { tabIds: ['missing', 'new'] }, { tabIds: ['new', 'new'] },
+    { tabIds: ['t1'] }, { shares: [1] }, { shares: [1, 0] }, { shares: [1, NaN] },
+  ]) {
+    const result = reducer(paid, { ...valid, ...override });
+    assert.equal(result.core, paid.core);
+    assert.equal(result.past, paid.past);
+    assert.equal(result.toast.tone, 'info');
+    assert.ok(result.toast.text.length > 0);
+  }
 });
 
 test('removing the first tab renumbers survivors without changing identity and supports undo, redo and add', () => {

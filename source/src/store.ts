@@ -193,7 +193,7 @@ export type Action =
   | { type: 'MOVE_ALL'; from: string; to: string | 'new' }
   | { type: 'ADD_TAB' }
   | { type: 'REMOVE_TAB'; tabId: string; dest?: string }
-  | { type: 'SPLIT_ITEM'; lineId: string; tabIds: (string | 'new')[]; shares: number[] }
+  | { type: 'SPLIT_ITEMS'; lineIds: string[]; tabIds: (string | 'new')[]; shares: number[] }
   | { type: 'EVEN_SPLIT'; n: number } | { type: 'BY_SEAT' } | { type: 'CANCEL_SPLITS' }
   | { type: 'DISCOUNT_ITEMS'; itemIds: string[]; pct: number }
   | { type: 'VOID_ITEMS'; itemIds: string[] }
@@ -273,13 +273,28 @@ export function reducer(s: State, a: Action): State {
       return commit(s, c, { toast: toast(msg), activeTab: s.activeTab === a.tabId ? nextActive : s.activeTab,
         flash: a.dest ? flashFor(c, a.dest, lines.map(l => l.itemId)) : [], flashKey: s.flashKey + 1 });
     }
-    case 'SPLIT_ITEM': {
-      const l = c.lines.find(x => x.id === a.lineId)!;
+    case 'SPLIT_ITEMS': {
+      const selected = new Set(a.lineIds);
+      const lines = c.lines.filter(l => selected.has(l.id));
+      if (!selected.size || lines.length !== selected.size || lines.some(l => c.items[l.itemId].voided || tabById(l.tabId).paid)) {
+        return { ...s, toast: toast('Select available unpaid items to split.', false, 'info') };
+      }
+      if (a.tabIds.length < 2 || new Set(a.tabIds).size !== a.tabIds.length || a.shares.length !== a.tabIds.length ||
+        a.shares.some(share => !Number.isSafeInteger(share) || share <= 0) ||
+        a.tabIds.some(id => id !== 'new' && !c.tabs.some(t => t.id === id && !t.paid))) {
+        return { ...s, toast: toast('Choose at least two open tabs and positive whole-number shares.', false, 'info') };
+      }
       const S = a.shares.reduce((x, y) => x + y, 0);
       const destIds = a.tabIds.map(id => (id === 'new' ? newTab(c).id : id));
-      c.lines = c.lines.filter(x => x.id !== l.id);
-      destIds.forEach((tid, k) => { const [n, d] = reduce(l.num * a.shares[k], l.den * S); c.lines.push({ id: nid(c), itemId: l.itemId, tabId: tid, num: n, den: d }); });
-      return commit(s, c, { toast: toast(`${c.items[l.itemId].name} split between ${destIds.length} tabs`), flash: destIds.map(t => l.itemId + '@' + t), flashKey: s.flashKey + 1 });
+      c.lines = c.lines.filter(l => !selected.has(l.id));
+      lines.forEach(l => destIds.forEach((tid, k) => {
+        const [n, d] = reduce(l.num * a.shares[k], l.den * S);
+        c.lines.push({ id: nid(c), itemId: l.itemId, tabId: tid, num: n, den: d });
+      }));
+      const itemIds = [...new Set(lines.map(l => l.itemId))];
+      const subject = lines.length === 1 ? c.items[lines[0].itemId].name : plural(lines.length, 'item');
+      return commit(s, c, { toast: toast(`${subject} split between ${destIds.length} tabs`),
+        flash: destIds.flatMap(t => itemIds.map(id => id + '@' + t)), flashKey: s.flashKey + 1 });
     }
     case 'EVEN_SPLIT': {
       const share: Record<string, [number, number]> = {};

@@ -152,7 +152,7 @@ function BottomBar() {
               <div style={{ fontSize: 16, fontWeight: 700 }}>{sel.length} item{sel.length === 1 ? '' : 's'} selected {tabsOf.size === 1 ? 'on' : 'across'} {srcName}</div>
               <div style={{ fontSize: 13, color: '#C9CEDA' }}>Tap a tab to move them, or drag</div>
             </div>
-            <button className="btn dk" disabled={sel.length !== 1} title={sel.length !== 1 ? 'Select one item to split' : ''} onClick={() => open({ kind: 'split', lineId: sel[0] })}><Icon n="split" s={18} />Split item</button>
+            <button className="btn dk" onClick={() => open({ kind: 'split', lineIds: sel })}><Icon n="split" s={18} />{sel.length === 1 ? 'Split item' : 'Split items'}</button>
             <button className="btn dk" onClick={() => open({ kind: 'discount', itemIds })}><Icon n="tag" s={18} />Discount</button>
             <button className="btn dk red" onClick={() => open({ kind: 'void', itemIds })}><Icon n="ban" s={18} />Void</button>
             <div className="vsep dk" />
